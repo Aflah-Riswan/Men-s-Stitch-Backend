@@ -16,7 +16,8 @@ function validateUserLogin(credentials) {
         'any.required': 'Password is required'
       }
 
-    )
+    ),
+    agreeTerms : Joi.boolean().valid(true).required()
   })
   return validateLoginSchema.validate(credentials)
 
