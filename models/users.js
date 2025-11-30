@@ -15,6 +15,7 @@ const addressSchema = new mongoose.Schema({
   label:{ type:String, default:'Home', trim:true},
   isDefault:{type:Boolean,default:false}
 })
+
 const userSchema=new mongoose.Schema({
   firstName:{type:String,required:true,trim:true},
   lastName:{type:String,required:true,trim:true},

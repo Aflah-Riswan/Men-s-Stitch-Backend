@@ -4,6 +4,7 @@ const cors = require('cors');
 const { connectDB } = require('./src/config/db');
 const authRoutes =require('./routes/authRoutes')
 const cookieParser = require("cookie-parser");
+const uploadRoutes = require('./routes/upload')
 const app = express()
 connectDB()
 console.log("index.js loaded")
@@ -15,9 +16,7 @@ app.use(cors({
 }));
 app.use(express.json())
 app.use(cookieParser())
-app.use('/api/auth',(req,res,next)=>{
-  console.log("inside api/auth")
-  next()
-},authRoutes)
+app.use('/api/auth',authRoutes)
+app.use('/api',uploadRoutes)
 
 app.listen(3000, () => console.log('server is running..'))
