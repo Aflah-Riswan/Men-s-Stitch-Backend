@@ -5,6 +5,7 @@ const { connectDB } = require('./src/config/db');
 const authRoutes =require('./routes/authRoutes')
 const cookieParser = require("cookie-parser");
 const uploadRoutes = require('./routes/upload')
+const categoryRoutes = require('./routes/categoryRoutes')
 const app = express()
 connectDB()
 console.log("index.js loaded")
@@ -18,5 +19,5 @@ app.use(express.json())
 app.use(cookieParser())
 app.use('/api/auth',authRoutes)
 app.use('/api',uploadRoutes)
-
+app.use('/api/categories',categoryRoutes)
 app.listen(3000, () => console.log('server is running..'))

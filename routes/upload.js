@@ -1,18 +1,9 @@
 
 const express = require('express')
-const multer = require('multer')
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3')
 const router = express.Router()
+const {upload,s3 }= require('../middlewares/configAws')
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3')
 
-const s3 = new S3Client({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY,
-    secretAccessKey: process.env.AWS_SECRET_KEY
-  }
-})
-const storage = multer.memoryStorage()
-const upload = multer({ storage: storage })
 
 router.post('/upload', upload.single('image'), async (req, res) => {
   try {

@@ -22,4 +22,8 @@ function validateUserLogin(credentials) {
   return validateLoginSchema.validate(credentials)
 
 }
+
+function validateCategories(categoryData) {
+  
+}
 module.exports={validateUserLogin}
