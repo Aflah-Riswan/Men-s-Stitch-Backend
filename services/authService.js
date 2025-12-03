@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt')
 const jwt=require('jsonwebtoken')
 
 const genearteAccessToken = (user)=>{
-  return jwt.sign({id:user._id,role:user.role},process.env.ACCESS_TOKEN_KEY,{expiresIn:'30m'})
+  return jwt.sign({id:user._id,role:user.role},process.env.ACCESS_TOKEN_KEY,{expiresIn:'1d'})
 }
 const generateRefreshToken = (user) =>{
    return jwt.sign({id:user._id,role:user.role},process.env.REFRESH_TOKEN_KEY,{expiresIn:'7d'})
