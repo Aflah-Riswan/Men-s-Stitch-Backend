@@ -6,7 +6,7 @@ const addCategory = async (data) => {
     data.parentCategory = null;
   }
   console.log("sanitaized data : ", data)
-  const categoryExist = await Category.findOne({ categoryName: data.categoryName })
+  const categoryExist = await Category.findOne({ categoryName: data.categoryName ,isDeleted:false })
   if (categoryExist) return { success: false, message: 'already exist' }
   const category = new Category(data)
   const savedCategory = await category.save()
