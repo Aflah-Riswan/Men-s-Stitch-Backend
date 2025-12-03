@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt')
 const jwt=require('jsonwebtoken')
 
 const genearteAccessToken = (user)=>{
-  return jwt.sign({id:user._id,role:user.role},process.env.ACCESS_TOKEN_KEY,{expiresIn:'5m'})
+  return jwt.sign({id:user._id,role:user.role},process.env.ACCESS_TOKEN_KEY,{expiresIn:'30m'})
 }
 const generateRefreshToken = (user) =>{
    return jwt.sign({id:user._id,role:user.role},process.env.REFRESH_TOKEN_KEY,{expiresIn:'7d'})
@@ -25,7 +25,7 @@ const loginService = async (userData) =>{
     
     const refreshToken=generateRefreshToken(user)
     console.log("refreshtoken : ",refreshToken)
-    const updated = User.findByIdAndUpdate(user._id,{refreshToken:refreshToken})
+    const updated = await User.findByIdAndUpdate(user._id,{refreshToken:refreshToken})
     console.log(updated)
    
     console.log("completed saving")
