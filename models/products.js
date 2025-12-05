@@ -32,7 +32,7 @@ const productSchema = new mongoose.Schema({
   subCategory: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null },
   variants: [variantsSchema],
   attributes: {
-    type: Map,
+    type: Object,
     of: String
   },
   faqs: { type: [{ question: String, answer: String }], default: [] },

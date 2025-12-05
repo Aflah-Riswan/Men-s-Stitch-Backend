@@ -2,7 +2,7 @@
 const joi = require('joi')
 
 const validateCategory = (req, res, next) => {
-  
+
   const schema = joi.object({
     categoryName: joi.string().min(3).required().messages({ 'string.empty': 'Category name is required', 'string.min': 'Category name must be greater than 3 characters' }),
     categoryOffer: joi.number().min(1).max(100).required().messages({
@@ -17,10 +17,10 @@ const validateCategory = (req, res, next) => {
       'string.uri': 'Image must be a valid URL link (http/https)'
     }),
     discountType: joi.string().valid('Flat', 'Percentage').required(),
-    
+
     parentCategory: joi.alternatives().try(
-      joi.string().allow('none', ''),
-      joi.object(), 
+      joi.string().hex().length(24),
+      joi.string().valid('none', ''), 
       joi.allow(null)
     ).optional(),
     isListed: joi.boolean(),
