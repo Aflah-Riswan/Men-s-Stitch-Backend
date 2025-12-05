@@ -17,9 +17,10 @@ const validateCategory = (req, res, next) => {
       'string.uri': 'Image must be a valid URL link (http/https)'
     }),
     discountType: joi.string().valid('Flat', 'Percentage').required(),
+    
     parentCategory: joi.alternatives().try(
       joi.string().allow('none', ''),
-      joi.object(), // Allows MongoDB ObjectId if passed as object
+      joi.object(), 
       joi.allow(null)
     ).optional(),
     isListed: joi.boolean(),
@@ -28,7 +29,7 @@ const validateCategory = (req, res, next) => {
 
   const { error } = schema.validate(req.body)
   if (error) {
-    console.log("🛑 Joi Validation Failed:", error.details[0].message);
+    console.log("joi Validation Failed:", error.details[0].message);
     return res.status(400).json({
       success: false,
       message: error.details[0].message

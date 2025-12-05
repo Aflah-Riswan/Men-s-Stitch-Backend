@@ -25,7 +25,7 @@ const getAllCategories = async (req, res, next) => {
   console.log("inside get ALL CATEGORIUS ")
   try {
     const categories = await Category.find({ isDeleted: false })
-    res.json({ categories })
+    return res.json({ categories })
   } catch (error) {
     console.log("error in get all categories ", error)
   }
