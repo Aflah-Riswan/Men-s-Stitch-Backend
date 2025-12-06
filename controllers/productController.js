@@ -12,4 +12,68 @@ const createProduct = async (req, res) => {
     return res.satus(400).json(error.message)
   }
 }
-module.exports = { createProduct }
+
+const getProducts = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      category = '',
+      minPrice = '',
+      maxPrice = '',
+      sort = '',
+      status = ''
+    } = req.query
+    console.log("one")
+    const response = await productService.getProductsService(
+      {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        search,
+        category,
+        minPrice,
+        maxPrice,
+        sort,
+        status
+      }
+    )
+    console.log("two")
+    if (response.success) {
+      console.log("inside condition")
+      return res.status(201).json({
+        success: response.success,
+        products: response.products,
+        pagination: {
+          totalPages: response.totalPages,
+          currentPage: response.currentPage,
+          hasNextPage: response.currentPage < response.totalProduct,
+          hasPrevPage: response.currentPage > 1
+        }
+
+      })
+    } else {
+      return res.json({ success: false, message: response.message })
+
+    }
+
+  } catch (error) {
+    console.log("errror : ", error)
+    return res.json({ success: false, message: error.message })
+  }
+}
+
+const productToggleIsList = async (req, res) => {
+  try {
+    
+    const { id } = req.params
+    const response = await productService.productToggleIsList(id)
+    if (response.success) return res.json({ success: true, updatedData: response.updatedData })
+    else return res.json({ success: false, message: response.message })
+
+  } catch (error) {
+    return res.json({success:false ,message:error.message})
+  }
+
+}
+module.exports = { createProduct, getProducts,productToggleIsList }

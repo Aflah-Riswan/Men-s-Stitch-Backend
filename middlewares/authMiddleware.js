@@ -12,7 +12,6 @@ const protect = async (req, res, next) => {
       console.log("token is : ",token)
       const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_KEY)
       req.user = await User.findById(decoded.id).select('-password')
-      
       next()
     } catch (error) {
      console.error("Auth Error:", error.name);

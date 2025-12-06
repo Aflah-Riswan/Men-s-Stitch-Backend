@@ -62,6 +62,7 @@ const validateProduct = (req, res, next) => {
   })
 
   const {error} = schema.validate(req.body)
+  console.log(error)
   if(error){
     console.log(" error found in joi validation in products : ",error.details[0].message)
     return res.status(400).json({
