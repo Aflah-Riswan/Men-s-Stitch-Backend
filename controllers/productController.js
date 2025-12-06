@@ -1,4 +1,5 @@
 
+const Products = require('../models/products')
 const productService = require('../services/productService')
 
 const createProduct = async (req, res) => {
@@ -65,15 +66,29 @@ const getProducts = async (req, res) => {
 
 const productToggleIsList = async (req, res) => {
   try {
-    
+
     const { id } = req.params
     const response = await productService.productToggleIsList(id)
     if (response.success) return res.json({ success: true, updatedData: response.updatedData })
     else return res.json({ success: false, message: response.message })
 
   } catch (error) {
-    return res.json({success:false ,message:error.message})
+    return res.json({ success: false, message: error.message })
   }
 
 }
-module.exports = { createProduct, getProducts,productToggleIsList }
+const getProductById = async (req, res) => {
+  try {
+    const { id } = req.params
+    const product = Products.findById(id)
+    if(!product) return res.json({success:false,message:'product is not found'})
+     return res.json({success :true , product}) 
+
+  } catch (error) {
+    console.log(error)
+    return res.json({success:false , message : error.message})
+  }
+}
+
+
+module.exports = { createProduct, getProducts, productToggleIsList,getProductById }
