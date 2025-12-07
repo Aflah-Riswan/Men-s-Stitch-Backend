@@ -80,15 +80,40 @@ const productToggleIsList = async (req, res) => {
 const getProductById = async (req, res) => {
   try {
     const { id } = req.params
-    const product = Products.findById(id)
-    if(!product) return res.json({success:false,message:'product is not found'})
-     return res.json({success :true , product}) 
+    const product = await Products.findById(id)
+    if (!product) return res.json({ success: false, message: 'product is not found' })
+    return res.json({ success: true, product })
 
   } catch (error) {
     console.log(error)
-    return res.json({success:false , message : error.message})
+    return res.json({ success: false, message: error.message })
+  }
+}
+const updateProduct = async (req, res) => {
+  const { id } = req.params
+  const data = req.body
+  try {
+    const response = await productService.updateProductService(id,data)
+    console.log("response : ", response)
+    if (response.success) {
+      return res.status(201).json({success:true, updatedProduct :response.updatedProduct})
+    } else {
+      return res.json({ success: false, message: response.message})
+    }
+  } catch (error) {
+     return res.json({ success: false, message: error})
+  }
+}
+const deleteProduct = async (req,res) =>{
+  try {
+    const {id} = req.params
+    const response = await productService.deleteProductService(id)
+    if(response.success) return res.json({success: true , deltedData : response.deletedData})
+    else return res.json({success:false,message:response.message})
+  } catch (error) {
+    return res.json({success:false,message:error.message})
   }
 }
 
 
-module.exports = { createProduct, getProducts, productToggleIsList,getProductById }
+module.exports = { createProduct, getProducts, productToggleIsList, getProductById,updateProduct ,deleteProduct }

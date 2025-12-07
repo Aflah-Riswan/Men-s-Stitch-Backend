@@ -75,18 +75,42 @@ const getProductsService = async (data) => {
 }
 
 const productToggleIsList = async (id) => {
- 
+
   try {
-    const response = await Products.findByIdAndUpdate(id, [ { $set : { isListed : { $not : '$isListed' } } } ],{new:true})
+    const response = await Products.findByIdAndUpdate(id, [{ $set: { isListed: { $not: '$isListed' } } }], { new: true })
     console.log("finished")
-    if(!response) return { success:false , message:'Product is not existed'}
-    
-    return { success:true , updatedData : response}
+    if (!response) return { success: false, message: 'Product is not existed' }
+
+    return { success: true, updatedData: response }
 
   } catch {
-    return {success:false , message:error.message}
+    return { success: false, message: error.message }
   }
 
 }
 
-module.exports = { createProductService, getProductsService,productToggleIsList }
+const updateProductService = async (id, data) => {
+  try {
+    const updatedProduct = await Products.findByIdAndUpdate({ _id: id }, { $set: data }, { new: true })
+    console.log(updatedProduct)
+    console.log("helllloooo")
+    return { success: true, updatedProduct }
+  } catch (error) {
+
+    console.log("error in updating data : ", error)
+    return { success: false, message: error }
+  }
+}
+const deleteProductService = async (id) => {
+  
+  try {
+    const response = await Products.findByIdAndUpdate({_id : id}, { isDeleted: true }, { new: true })
+
+    if (!response) return { success: false, message: ' product is not found ' }
+    return { success: true, deletedData: response }
+  } catch (error) {
+    return { success: false, message: error.message }
+  }
+}
+
+module.exports = { createProductService, getProductsService, productToggleIsList, updateProductService,deleteProductService }
