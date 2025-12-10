@@ -8,8 +8,9 @@ const createCategory = async (req, res) => {
     const data = req.body
 
     const result = await categoryService.addCategory(data)
+    console.log("resulkt : ",result)
     if (result.success) return res.status(201).json(result)
-    else return res.status(400).json(result)
+    else return res.json(result)
   } catch (error) {
     console.log("error in categoryController ", error)
     return res.status(500).json({
@@ -36,21 +37,23 @@ const toggleIsList = async (req, res) => {
   const response = await categoryService.toggleIsList(categoryId)
   res.json({ updated: response })
 }
-const getCategoryById = async (req, res) => {
-  const categoryId = req.params.id
-  const categoryItem = await Category.findById(categoryId)
+const getCategoryBySlug = async (req, res) => {
+  const { slug } = req.params
+  console.log("slug : ",slug)
+  const categoryItem = await Category.findOne({slug:slug})
+  console.log("isExisted : ",categoryItem)
   return res.json({ categoryItem })
 }
 
 const updateCategory = async (req, res) => {
-  const { id } = req.params
-  console.log("id : ", id)
-  const response = await categoryService.updateCategory(id, req.body)
+  const { slug } = req.params
+  console.log("id : ", slug)
+  const response = await categoryService.updateCategory(slug, req.body)
   console.log("response : ", response)
   if (response.success) {
     return res.status(201).json(response)
   } else {
-    return res.status(400).json(response)
+    return res.json(response)
   }
 }
 const deleteCategory = async (req, res) => {
@@ -73,4 +76,4 @@ const deleteCategory = async (req, res) => {
 
 }
 
-module.exports = { createCategory, getAllCategories, toggleIsList, getCategoryById, updateCategory ,deleteCategory }
+module.exports = { createCategory, getAllCategories, toggleIsList, getCategoryBySlug, updateCategory ,deleteCategory }

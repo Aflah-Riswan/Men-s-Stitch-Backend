@@ -8,7 +8,7 @@ const validateProduct = (req, res, next) => {
 
     productDescription: joi.string().min(20).required().messages({ 'string.empty': 'product description cant be empty', 'string.min': 'enter atleast 20 words in product description' }),
 
-    coverImages: joi.array().items(joi.string().uri()).length(3).required().messages({ 'array.base': 'cover images must be a list of images', 'array.length': 'only 3 cover images are required', 'string.uri': 'invalid url is found', 'any.required': 'cover images are required' }),
+    coverImages: joi.array().items(joi.string().uri()).length(1).required().messages({ 'array.base': 'cover images must be a list of images', 'array.length': 'only 1 cover image are required', 'string.uri': 'invalid url is found', 'any.required': 'cover images are required' }),
 
     originalPrice: joi.number().min(1).required().messages({ 'number.base': 'original price must be a number', 'number.min': 'original price should b egreater than 0', 'any.required': 'original price is reauired', }),
 

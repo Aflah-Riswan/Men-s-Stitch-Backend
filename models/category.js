@@ -1,8 +1,10 @@
 
 const mongoose = require('mongoose')
+const { default: slugify } = require('slugify')
 
 const categorySchema = new mongoose.Schema({
   categoryName: { type: String, required: true },
+  slug : { type:String, unique:true},
   image: { type: String, required: true },
   parentCategory: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null },
   categoryOffer: { type: Number, required: true,default:0 },
@@ -14,5 +16,16 @@ const categorySchema = new mongoose.Schema({
 }
   , { timestamps: true }
 )
+categorySchema.pre('save', function(next){
+  if(this.categoryName && this.isModified('categoryName')){
+    this.slug =slugify(this.categoryName,{
+      lower:true,
+      strict:true,
+      trim:true
+    })
+  }
+  next()
+})
+
 const Category = mongoose.model('Category', categorySchema)
 module.exports = Category

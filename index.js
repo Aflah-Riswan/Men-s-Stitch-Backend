@@ -22,5 +22,5 @@ app.use('/api/auth',authRoutes)
 app.use('/api',uploadRoutes)
 app.use('/api/categories',categoryRoutes)
 app.use('/api/products',productRoutes)
-// app.use('/api/products',productRoutes)
+
 app.listen(3000, () => console.log('server is running..'))

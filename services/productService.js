@@ -113,4 +113,4 @@ const deleteProductService = async (id) => {
   }
 }
 
-module.exports = { createProductService, getProductsService, productToggleIsList, updateProductService,deleteProductService }
+module.exports = { createProductService, getProductsService, productToggleIsList, updateProductService,deleteProductService } 

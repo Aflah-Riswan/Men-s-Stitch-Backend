@@ -6,7 +6,7 @@ const createProduct = async (req, res) => {
   try {
     const data = req.body
     const response = await productService.createProductService(data)
-    if (response.success) return res.status(201).json(response.data)
+    if (response.success) return res.status(201).json(response)
     else return res.status(401).json(response)
   } catch (error) {
     console.log("error found  : ", error)
@@ -18,7 +18,7 @@ const getProducts = async (req, res) => {
   try {
     const {
       page = 1,
-      limit = 10,
+      limit = 5,
       search = '',
       category = '',
       minPrice = '',
@@ -26,7 +26,7 @@ const getProducts = async (req, res) => {
       sort = '',
       status = ''
     } = req.query
-    console.log("one")
+    
     const response = await productService.getProductsService(
       {
         page: parseInt(page),
@@ -39,7 +39,7 @@ const getProducts = async (req, res) => {
         status
       }
     )
-    console.log("two")
+   
     if (response.success) {
       console.log("inside condition")
       return res.status(201).json({
@@ -106,9 +106,9 @@ const updateProduct = async (req, res) => {
 }
 const deleteProduct = async (req,res) =>{
   try {
-    const {id} = req.params
+    const { id } = req.params
     const response = await productService.deleteProductService(id)
-    if(response.success) return res.json({success: true , deltedData : response.deletedData})
+    if(response.success) return res.json({success: true , deletedData : response.deletedData})
     else return res.json({success:false,message:response.message})
   } catch (error) {
     return res.json({success:false,message:error.message})
