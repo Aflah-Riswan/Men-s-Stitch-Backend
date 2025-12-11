@@ -8,7 +8,7 @@ const createCategory = async (req, res) => {
     const data = req.body
 
     const result = await categoryService.addCategory(data)
-    console.log("resulkt : ",result)
+    console.log("resulkt : ", result)
     if (result.success) return res.status(201).json(result)
     else return res.json(result)
   } catch (error) {
@@ -23,12 +23,50 @@ const createCategory = async (req, res) => {
 }
 
 const getAllCategories = async (req, res, next) => {
-  console.log("inside get ALL CATEGORIUS ")
+
+  const {
+    page = 1,
+    limit = 5,
+    sort = '',
+    category = '',
+    discount = '',
+    status = '',
+    search = ''
+  } = req.query
   try {
-    const categories = await Category.find({ isDeleted: false })
-    return res.json({ categories })
+
+    const response = await categoryService.getCategoryService(
+      {
+        page,
+        limit,
+        category,
+        search,
+        discount,
+        sort,
+        status
+      }
+    )
+    console.log("response : ",response)
+
+    if (response.success) {
+      return res.status(201).json({
+        success: response.success,
+        categories: response.categories,
+        pagination: {
+          totalPages: response.totalPages,
+          currentPage: response.currentPage,
+          hasNextPage: response.currentPage < response.totalProduct,
+          hasPrevPage: response.currentPage > 1
+        }
+
+      })
+    } else {
+      return res.json({success: false , message : ' something found error'})
+    }
+
   } catch (error) {
     console.log("error in get all categories ", error)
+    return res.json({success: false , message : error.message})
   }
 
 }
@@ -39,9 +77,9 @@ const toggleIsList = async (req, res) => {
 }
 const getCategoryBySlug = async (req, res) => {
   const { slug } = req.params
-  console.log("slug : ",slug)
-  const categoryItem = await Category.findOne({slug:slug})
-  console.log("isExisted : ",categoryItem)
+  console.log("slug : ", slug)
+  const categoryItem = await Category.findOne({ slug: slug })
+  console.log("isExisted : ", categoryItem)
   return res.json({ categoryItem })
 }
 
@@ -59,21 +97,21 @@ const updateCategory = async (req, res) => {
 const deleteCategory = async (req, res) => {
   try {
     const { id } = req.params
-   
+
     const response = await categoryService.deleteCategory(id)
-     
-    if(response.success) {
- 
-      return res.status(201).json({deletedItem:response.itemToDelete})
+
+    if (response.success) {
+
+      return res.status(201).json({ deletedItem: response.itemToDelete })
     }
     else {
-      
-      return res.status(400).json({error:response.message})
+
+      return res.status(400).json({ error: response.message })
     }
   } catch (error) {
-    return res.status(500).json({success : false,error })
+    return res.status(500).json({ success: false, error })
   }
 
 }
 
-module.exports = { createCategory, getAllCategories, toggleIsList, getCategoryBySlug, updateCategory ,deleteCategory }
+module.exports = { createCategory, getAllCategories, toggleIsList, getCategoryBySlug, updateCategory, deleteCategory }

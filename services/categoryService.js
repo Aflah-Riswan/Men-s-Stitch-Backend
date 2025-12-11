@@ -2,7 +2,6 @@
 const Category = require('../models/category')
 const addCategory = async (data) => {
   try {
-
     if (data.parentCategory === 'false' || data.parentCategory === false || data.parentCategory === 'none') {
       data.parentCategory = null;
     }
@@ -24,6 +23,58 @@ const addCategory = async (data) => {
     }
   }
 }
+
+const getCategoryService = async (data) => {
+  try {
+    const {
+      page = Number(data.page) || 1,
+      limit = Number(data.limit) || 5,
+      search,
+      category,
+      status,
+      sort,
+      discount
+    } = data
+
+    const skip = (page - 1) * limit
+    const filter = { isDeleted: false }
+    filter.$or = [{ categoryName: { $regex: search, $options: 'i' } }]
+    if (category) {
+      filter.categoryName = category
+    }
+    if (status) {
+      if(status === 'active') filter.isListed = true
+      else filter.isListed = false
+    }
+    if (discount) {
+      filter.discountType = discount
+    }
+    let sortQuery = { createdAt: -1 }
+    if (sort === 'newest') sortQuery = { createdAt: 1 }
+    if (sort === 'oldest') sortQuery = { createdAt: -1 }
+    if (sort === 'a-z') sortQuery = { categoryName: 1 }
+    if (sort === 'z-a') sortQuery = { categoryName: -1 }
+
+    const categories = await Category.find(filter)
+    .sort(sortQuery)
+    .skip(skip)
+    .limit(limit)
+    
+    console.log("categoriess: ",categories)
+
+    const totalCategories = await Category.countDocuments(filter);
+    return {
+      success: true,
+      message: ' fetch data succefully',
+      categories,
+      totalPages: Math.ceil(totalCategories / limit),
+      currentPage: page
+    }
+  } catch (error) {
+    return  { success:false , message: error.message}
+  }
+}
+
 const toggleIsList = async (categoryId) => {
   const categoryItem = await Category.findById(categoryId)
   if (categoryItem) {
@@ -70,4 +121,4 @@ const deleteCategory = async (id) => {
 
 }
 
-module.exports = { addCategory, toggleIsList, updateCategory, deleteCategory }
+module.exports = { addCategory, toggleIsList, updateCategory, deleteCategory,getCategoryService }
