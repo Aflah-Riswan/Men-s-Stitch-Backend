@@ -26,7 +26,10 @@ const userSchema=new mongoose.Schema({
   isPhoneVerified:{type:Boolean,default:false},
   isBlocked:{type:Boolean,default:false}, 
   role:{type:String,default:'user',enum:['user','admin']},
-  addresses:[addressSchema],
+  addresses:{
+    type : [addressSchema],
+    default:[]
+  },
   refreshToken:{type:String,default:null},
 },
  { timestamps:true})

@@ -44,5 +44,29 @@ const refreshAccessToken = async (req, res) => {
   }
 }
 
+const createUser = async (req,res)=>{
+  try {
+    console.log(req.body)
+   const response = await authService.createUserService(req.body)
+   console.log(response)
+   if(response.success){
+     res.cookie('refreshToken',response.refreshToken ,{
+       httpOnly : true,
+       secure:true,
+       sameSite:'strict' 
+     })
+     return res.json({
+      success:true,message:response.message,
+      accessToken:response.accessToken,role:response.user.role
+    })
+   }
+   else return res.json({success:false ,message : response.message})
 
-module.exports = { loginUser, refreshAccessToken }
+  } catch (error) {
+    console.log(error)
+    return res.json({success:false ,message : error.message})
+  }
+}
+
+
+module.exports = { loginUser, refreshAccessToken,createUser  }
