@@ -1,4 +1,5 @@
 const User = require("../models/users")
+const { sendEmail } = require("../utils/sendEmail")
 const { validateUserLogin, validateUserSignup } = require("../utils/userValidate")
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
@@ -44,7 +45,7 @@ const refreshAccessTokenService = async (refreshToken) => {
     if (!refreshToken) {
       return { success: false, message: "no refresh token" }
     }
-    const decoded = await jwt.verify(refreshToken, process.env.REFRESH_TOKEN_KEY)
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_KEY)
     const user = await User.findById(decoded.id)
     if (!user) return { succeess: false, message: "user is not found " }
     if (user.refreshToken !== refreshToken) return { success: false, message: 'invalid refresh token' }
@@ -58,39 +59,39 @@ const refreshAccessTokenService = async (refreshToken) => {
 
 const createUserService = async (data) => {
   try {
-    const { error,value } = validateUserSignup(data)
+    const { error, value } = validateUserSignup(data)
     if (error) return { success: false, message: error.details[0].message }
-    console.log("value : ",value)
+    console.log("value : ", value)
     const { firstName, lastName, phone, email, password } = value
     const isExisted = await User.findOne({ email })
-    console.log("isEXISTED : ",isExisted)
+    console.log("isEXISTED : ", isExisted)
     if (isExisted) return { success: false, message: ' user already existed ' }
 
     const salt = await bcrypt.genSalt(10)
-    const hashedPassword = await bcrypt.hash(password,salt)
+    const hashedPassword = await bcrypt.hash(password, salt)
 
     const newUser = new User({
-      firstName, 
-      lastName, 
-      phone, 
+      firstName,
+      lastName,
+      phone,
       email,
-      password:hashedPassword, 
+      password: hashedPassword,
       isPhoneVerified: true
     })
-    
+
     const accessToken = genearteAccessToken(newUser)
     const refreshToken = generateRefreshToken(newUser)
     newUser.refreshToken = refreshToken
 
     const savedUser = await newUser.save()
-    
+
     if (savedUser) {
       return {
         success: true,
         message: 'account created succesfully',
         accessToken,
         refreshToken,
-         user:savedUser
+        user: savedUser
       }
     } else {
       return {
@@ -103,4 +104,74 @@ const createUserService = async (data) => {
   }
 }
 
-module.exports = { loginService, refreshAccessTokenService, createUserService }
+const forgotPassWordService = async (email) => {
+  try {
+    const user = await User.findOne({ email })
+    if (!user) return { success: false, message: 'The user in not already exist' }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    user.resetPasswordOTP = otp
+    user.resetPasswordExpires = Date.now() + 5 * 60 * 1000;
+    await user.save()
+
+    const htmlMessage = `
+        <div style="font-family: Arial, sans-serif; text-align: center;">
+          <h2>Verification Code</h2>
+          <p>Please use the following code to sign in:</p>
+          <h1 style="color: #4CAF50; letter-spacing: 5px;">${otp}</h1>
+          <p>This code expires in 10 minutes.</p>
+        </div>
+    `;
+
+    const emailRespond = await sendEmail(user.email, 'Your OTP for Verification', htmlMessage)
+    if (emailRespond) {
+      return { success: emailRespond.success, message: emailRespond.message }
+    }
+  } catch (error) {
+    console.log(error)
+  }
+}
+
+const verifyOtpService = async (email, inputOtp) => {
+  try {
+    const user = await User.findOne({ email })
+    if (!user) return { success: false, message: 'user is not found' }
+    if (user.resetPasswordExpires > Date.now()) {
+      console.log(inputOtp)
+      console.log(user.resetPasswordOTP)
+      if (user.resetPasswordOTP === inputOtp) {
+
+        return { success: true, message: 'successfull verified' }
+
+      } else {
+
+        return { success: false, message: 'invalid otp code' }
+
+      }
+    } else {
+
+      return { success: false, message: 'time is expired resend otp' }
+
+    }
+  } catch (error) {
+    console.log(error)
+    return { success: false, message: error.message }
+  }
+}
+
+const resetPasswordService = async (email, password) => {
+  try {
+    const salt = await bcrypt.genSalt(10)
+    const hashedPassword = await bcrypt.hash(password, salt)
+    const user = await User.findOneAndUpdate({ email }, { $set: { password: hashedPassword } }, { $new: true })
+    if (user) {
+      return { success: true, message: ' updated succesfully' }
+    } else {
+      return { success: false, message: ' cant find the user' }
+    }
+  } catch (error) {
+    return {success:false,message : error.message}
+  }
+}
+
+module.exports = { loginService, refreshAccessTokenService, createUserService, forgotPassWordService, verifyOtpService , resetPasswordService}

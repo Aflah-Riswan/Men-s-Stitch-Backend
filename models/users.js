@@ -5,7 +5,7 @@ const mongoose = require('mongoose')
 const addressSchema = new mongoose.Schema({
   firstName:{type:String,required:true,trim:true},
   lastName:{type:String,required:true,trim:true},
-  phone:{type:String,required:true,unique:true,trim:true},
+  phone:{type:String,required:true,trim:true},
   addressLine1:{type:String,required:true,trim:true},
   addressLine2:{type:String,required:true,trim:true},
   city:{type:String,required:true,trim:true},
@@ -20,7 +20,7 @@ const userSchema=new mongoose.Schema({
   firstName:{type:String,required:true,trim:true},
   lastName:{type:String,required:true,trim:true},
   email:{type:String, required:true, unique:true, lowerCase:true,trim:true,},
-  phone:{ type:String, required:true,unique:true,trim:true},
+  phone:{ type:String, required:true,trim:true},
   password:{type:String,required:true,},
   walletBalance:{type:Number,default:0},
   isPhoneVerified:{type:Boolean,default:false},
@@ -31,6 +31,8 @@ const userSchema=new mongoose.Schema({
     default:[]
   },
   refreshToken:{type:String,default:null},
+  resetPasswordOTP : { type:String },
+  resetPasswordExpires : {type : Date}
 },
  { timestamps:true})
 
