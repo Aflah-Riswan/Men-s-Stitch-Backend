@@ -29,10 +29,8 @@ const protect = async (req, res, next) => {
 const admin = async (req, res, next) => {
   try {
     const user = req.user
-    if (user && user.role === 'admin') {
-      
-      next()
-       
+    if (user && user.role === 'admin') {     
+      next()      
     }
     else {
       return res.json({ error :'no authorization'})

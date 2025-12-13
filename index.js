@@ -7,6 +7,7 @@ const cookieParser = require("cookie-parser");
 const uploadRoutes = require('./routes/upload')
 const categoryRoutes = require('./routes/categoryRoutes')
 const productRoutes = require('./routes/productRoutes')
+const userRoutes = require('./routes/userRoutes')
 const app = express()
 connectDB()
 console.log("index.js loaded")
@@ -22,6 +23,7 @@ app.use('/api/auth',authRoutes)
 app.use('/api',uploadRoutes)
 app.use('/api/categories',categoryRoutes)
 app.use('/api/products',productRoutes)
+app.use('/api/users',userRoutes)
 
 
 app.listen(3000, () => console.log('server is running..'))
