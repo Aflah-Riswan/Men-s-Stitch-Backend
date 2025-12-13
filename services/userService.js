@@ -54,11 +54,60 @@ const blockUserService = async (userId) => {
     if (!user) return { success: false, message: ' user is not found' }
     user.isBlocked = !user.isBlocked
     await user.save()
-    return { success : true , message : 'updated succesfully'}
+    return { success: true, message: 'updated succesfully' }
   } catch (error) {
-     return { success: false ,message : ' something went wrong'} 
+    return { success: false, message: ' something went wrong' }
   }
-
-
 }
-module.exports = { getUserService , blockUserService }
+
+const analyticsService = async () => {
+  try {
+    const sevenDaysAgo = new Date()
+    console.log(sevenDaysAgo)
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 1)
+    const totalCustomers = await Users.countDocuments({ role: 'user' })
+    const newCustomers = await Users.countDocuments({ role: 'user', createdAt: { $gte: sevenDaysAgo } })
+    const blockedCustomers = await Users.countDocuments({ isBlocked: true })
+    const chartDataRaw = await Users.aggregate([
+      {
+        $match: {
+          role: 'user',
+          createdAt: { $gte: sevenDaysAgo }
+        }
+      }, {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { _id: 1 }
+      }
+    ])
+    const chartData = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateString = d.toISOString().split('T')[0];
+      const found = chartDataRaw.find(item => item._id === dateString);
+
+      chartData.push({
+        name: d.toLocaleDateString('en-US', { weekday: 'short' }),
+        value: found ? found.count : 0,
+        fullDate: dateString
+      });
+    }
+    return {
+      success: true,
+      stats: {
+        total: totalCustomers,
+        new: newCustomers,
+        blocked: blockedCustomers,
+      },
+       chart: chartData
+    }
+  } catch (error) {
+    return { success: false, message: 'something went wrong' }
+  }
+}
+module.exports = { getUserService, blockUserService, analyticsService }

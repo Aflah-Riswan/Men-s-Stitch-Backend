@@ -38,4 +38,18 @@ const blockUser = async (req,res)=>{
     return res.json({success:false , message : 'something went wrong'})
   }
 }
-module.exports = { getUsers ,blockUser }
+
+const getCustomerAnalytics = async (req,res)=>{
+  try {
+    const response = await userService.analyticsService()
+    if(response.success){
+      return res.json(response)
+    }else{
+      console.log(response)
+      return res.json(response)
+    }
+  } catch (error) {
+     return res.json({ success:false ,message : ' something went wrong'})
+  }
+}
+module.exports = { getUsers ,blockUser , getCustomerAnalytics }
