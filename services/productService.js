@@ -60,7 +60,6 @@ const getProductsService = async (data) => {
     const products = await Products.find(filterQuery).populate('mainCategory', 'categoryName').sort(sortQuery).skip(skip).limit(limit)
 
     const totalProducts = await Products.countDocuments(products)
-
     return {
       success: true,
       message: ' fetch data succefully',
@@ -113,4 +112,41 @@ const deleteProductService = async (id) => {
   }
 }
 
-module.exports = { createProductService, getProductsService, productToggleIsList, updateProductService,deleteProductService } 
+const getProductHomeService = async () =>{
+  try {
+    const products = await Products.find({isDeleted:false})
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    const newArrivals = await Products.find({ isDeleted:false ,createdAt : { $gte : sevenDaysAgo } }).sort({createdAt : -1}).limit(4)
+    const featured = await Products.find({isListed:true , isDeleted : false})
+    return {
+      success:true,
+      products,
+      newArrivals,
+      featured
+    }
+  } catch (error) {
+    console.log(" response : ",error)
+    return  { success : false ,message : ' something went wrong'}
+  }
+}
+const getProductByIdHomeService = async (id) =>{
+  try {
+    const product = await Products.findById({_id:id}).populate({
+      path: 'reviews',
+      populate : {
+        path : 'user',
+        select : 'firstName email'
+      }
+    })
+
+    return { success : true , product}
+    
+  } catch (error) {
+     console.log(error)
+    return { success : false , message : 'something went wrong'}
+  }
+}
+
+
+module.exports = { createProductService, getProductsService, productToggleIsList, updateProductService,deleteProductService , getProductHomeService , getProductByIdHomeService } 

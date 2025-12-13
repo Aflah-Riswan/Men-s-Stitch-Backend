@@ -22,6 +22,8 @@ const ratingSchema = new mongoose.Schema({
   count: { type: Number, default: 0 }
 }, { _id: false });
 
+
+
 const productSchema = new mongoose.Schema({
   productName: { type: String, required: true },
   productDescription: { type: String, required: true },
@@ -47,5 +49,14 @@ const productSchema = new mongoose.Schema({
 },
   { timestamps: true }
 )
+
+productSchema.virtual('reviews', {
+  ref: 'Review',
+  localField: '_id',
+  foreignField: 'product'
+});
+
+productSchema.set('toObject', { virtuals: true });
+productSchema.set('toJSON', { virtuals: true });
 const Products = mongoose.model('Products', productSchema)
 module.exports = Products

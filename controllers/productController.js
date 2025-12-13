@@ -115,5 +115,36 @@ const deleteProduct = async (req,res) =>{
   }
 }
 
+const getProductsHome  = async (req,res) =>{
+  try {
+    const response = await productService.getProductHomeService()
+    console.log(" response : ",response)
+    if(response.success){
+      return res.json(response)
+    }else{
+      console.log(response)
+      return res.json(response)
+    }
+  } catch (error) {
+    console.log(" response : ",error)
+    return res.json({succcess : false , message : error.message})
+  }
+}
 
-module.exports = { createProduct, getProducts, productToggleIsList, getProductById,updateProduct ,deleteProduct }
+const getProductByIdHome = async (req,res) =>{
+  try {
+    const { id } = req.params
+    const response = await productService.getProductByIdHomeService(id)
+    if(response.success){
+      return res.json(response)
+    }else {
+      console.log(response)
+      return res.json(response)
+    }
+  } catch (error) {
+    console.log(error)
+     return res.json({ success : true , message :  'something went wrong '})
+  }
+}
+
+module.exports = { createProduct, getProducts, productToggleIsList, getProductById,updateProduct ,deleteProduct , getProductsHome , getProductByIdHome}
