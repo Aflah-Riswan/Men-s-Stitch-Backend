@@ -97,15 +97,11 @@ const updateCategory = async (req, res) => {
 const deleteCategory = async (req, res) => {
   try {
     const { id } = req.params
-
     const response = await categoryService.deleteCategory(id)
-
     if (response.success) {
-
       return res.status(201).json({ deletedItem: response.itemToDelete })
     }
     else {
-
       return res.status(400).json({ error: response.message })
     }
   } catch (error) {

@@ -1,6 +1,6 @@
 
 const Products = require('../models/products')
-
+const Category = require('../models/category')
 const createProductService = async (data) => {
   try {
     if (!data) return { success: false, message: 'data is empty' }
@@ -101,9 +101,9 @@ const updateProductService = async (id, data) => {
   }
 }
 const deleteProductService = async (id) => {
-  
+
   try {
-    const response = await Products.findByIdAndUpdate({_id : id}, { isDeleted: true }, { new: true })
+    const response = await Products.findByIdAndUpdate({ _id: id }, { isDeleted: true }, { new: true })
 
     if (!response) return { success: false, message: ' product is not found ' }
     return { success: true, deletedData: response }
@@ -112,45 +112,123 @@ const deleteProductService = async (id) => {
   }
 }
 
-const getProductHomeService = async () =>{
+const getProductHomeService = async () => {
   try {
-    const products = await Products.find({isDeleted:false})
+    const products = await Products.find({ isDeleted: false })
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    const newArrivals = await Products.find({ isDeleted:false ,createdAt : { $gte : sevenDaysAgo } }).sort({createdAt : -1}).limit(4)
-    const featured = await Products.find({isListed:true , isDeleted : false}).limit(4)
+    const newArrivals = await Products.find({ isDeleted: false, createdAt: { $gte: sevenDaysAgo } }).sort({ createdAt: -1 }).limit(4)
+    const featured = await Products.find({ isListed: true, isDeleted: false }).limit(4)
     return {
-      success:true,
+      success: true,
       products,
       newArrivals,
       featured
     }
   } catch (error) {
-    console.log(" response : ",error)
-    return  { success : false ,message : ' something went wrong'}
+    console.log(" response : ", error)
+    return { success: false, message: ' something went wrong' }
   }
 }
-const getProductByIdHomeService = async (id) =>{
+const getProductByIdHomeService = async (id) => {
   try {
-    const product = await Products.findById({_id:id}).populate({
+    const product = await Products.findById({ _id: id }).populate({
       path: 'reviews',
-      populate : {
-        path : 'user',
-        select : 'firstName email'
+      populate: {
+        path: 'user',
+        select: 'firstName email'
       }
     })
 
     const relatedProducts = await Products.find({
-      mainCategory : product.mainCategory, _id : { $ne : id}
+      mainCategory: product.mainCategory, _id: { $ne: id }
     }).select('productName salePrice originalPrice coverImages rating').limit(4)
 
-    return { success : true , product , relatedProducts}
-    
+    return { success: true, product, relatedProducts }
+
   } catch (error) {
-     console.log(error)
-    return { success : false , message : 'something went wrong'}
+    console.log(error)
+    return { success: false, message: 'something went wrong' }
   }
 }
 
 
-module.exports = { createProductService, getProductsService, productToggleIsList, updateProductService,deleteProductService , getProductHomeService , getProductByIdHomeService } 
+const getProductsByCategoryService = async (slug, queryParams) => {
+  try {
+    const { 
+      minPrice, 
+      maxPrice, 
+      sizes,  
+      page = 1, 
+      limit = 10,
+      search,
+      ...dynamicFilters 
+    } = queryParams;
+
+    const categoryDoc = await Category.findOne({ 
+      categoryName: { $regex: new RegExp(`^${slug}$`, 'i') } 
+    });
+
+    if (!categoryDoc) {
+      throw new Error(`Category '${slug}' not found`);
+    }
+
+    let filter = {
+      isDeleted: false,
+      isListed: true,
+      mainCategory: categoryDoc._id 
+    };
+
+    if (minPrice || maxPrice) {
+      filter.salePrice = {};
+      if (minPrice) filter.salePrice.$gte = Number(minPrice);
+      if (maxPrice) filter.salePrice.$lte = Number(maxPrice);
+    }
+
+    if (sizes) {
+      const sizeArray = sizes.split(',');
+      filter.$or = sizeArray.map(size => ({
+        [`variants.stock.${size.toUpperCase()}`]: { $gt: 0 } 
+      }));
+    }
+
+    if (search) {
+      filter.productName = { $regex: search, $options: 'i' };
+    }
+
+    Object.keys(dynamicFilters).forEach(key => {
+      if (key.startsWith('attr_')) {
+        const actualAttributeName = key.replace('attr_', '');
+        const values = dynamicFilters[key].split(','); 
+        const regexValues = values.map(v => new RegExp(`^${v}$`, 'i'));  
+        filter[`attributes.${actualAttributeName}`] = { $in: regexValues };
+      }
+    });
+
+    const pageNum = Number(page);
+    const limitNum = Number(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    const products = await Products.find(filter)
+      .skip(skip)
+      .limit(limitNum);
+
+    const totalCount = await Products.countDocuments(filter);
+    console.log(" products : ",products)
+    return {
+      success: true,
+      products,
+      pagination: {
+        currentPage: pageNum,
+        totalPages: Math.ceil(totalCount / limitNum),
+        totalProducts: totalCount
+      }
+    };
+
+  } catch (error) {
+    throw new Error(error.message);
+  }
+};
+
+
+module.exports = { createProductService, getProductsService, productToggleIsList, updateProductService, deleteProductService, getProductHomeService, getProductByIdHomeService , getProductsByCategoryService} 

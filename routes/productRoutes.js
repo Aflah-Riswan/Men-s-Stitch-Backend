@@ -1,7 +1,7 @@
 
 const express = require('express')
 const { validateProduct } = require('../middlewares/validateProducts')
-const { createProduct, getProducts, productToggleIsList, getProductById, updateProduct, deleteProduct, getProductsHome, getProductByIdHome } = require('../controllers/productController')
+const { createProduct, getProducts, productToggleIsList, getProductById, updateProduct, deleteProduct, getProductsHome, getProductByIdHome, getProductsByCategory } = require('../controllers/productController')
 const { protect, admin } = require('../middlewares/authMiddleware')
 const router = express.Router()
 
@@ -13,5 +13,6 @@ router.get('/:id/edit',protect,admin,getProductById)
 router.put('/:id/edit',protect,admin,updateProduct)
 router.patch('/:id/delete',protect,admin,deleteProduct)
 router.get('/:id/details',getProductByIdHome)
+router.get('/category/:slug',getProductsByCategory)
 
 module.exports = router

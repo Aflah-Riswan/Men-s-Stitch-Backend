@@ -147,4 +147,16 @@ const getProductByIdHome = async (req,res) =>{
   }
 }
 
-module.exports = { createProduct, getProducts, productToggleIsList, getProductById,updateProduct ,deleteProduct , getProductsHome , getProductByIdHome}
+const getProductsByCategory = async (req,res) =>{
+  const { slug } = req.params
+  const queryParams = req.query;
+  console.log(slug)
+  try {
+    const response = await productService.getProductsByCategoryService(slug , queryParams)
+    return res.json(response)
+  } catch (error) {
+     return res.json({success: false ,message : error.message})
+  }
+}
+
+module.exports = { createProduct, getProducts, productToggleIsList, getProductById,updateProduct ,deleteProduct , getProductsHome , getProductByIdHome , getProductsByCategory}
