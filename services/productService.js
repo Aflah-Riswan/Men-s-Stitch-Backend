@@ -118,7 +118,7 @@ const getProductHomeService = async () =>{
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
     const newArrivals = await Products.find({ isDeleted:false ,createdAt : { $gte : sevenDaysAgo } }).sort({createdAt : -1}).limit(4)
-    const featured = await Products.find({isListed:true , isDeleted : false})
+    const featured = await Products.find({isListed:true , isDeleted : false}).limit(4)
     return {
       success:true,
       products,
@@ -140,7 +140,11 @@ const getProductByIdHomeService = async (id) =>{
       }
     })
 
-    return { success : true , product}
+    const relatedProducts = await Products.find({
+      mainCategory : product.mainCategory, _id : { $ne : id}
+    }).select('productName salePrice originalPrice coverImages rating').limit(4)
+
+    return { success : true , product , relatedProducts}
     
   } catch (error) {
      console.log(error)
