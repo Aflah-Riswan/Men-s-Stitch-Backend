@@ -114,10 +114,10 @@ const deleteProductService = async (id) => {
 
 const getProductHomeService = async () => {
   try {
-    const products = await Products.find({ isDeleted: false })
+    const products = await Products.find({ isDeleted: false ,isListed : true})
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    const newArrivals = await Products.find({ isDeleted: false, createdAt: { $gte: sevenDaysAgo } }).sort({ createdAt: -1 }).limit(4)
+    const newArrivals = await Products.find({ isDeleted: false, isListed:true, createdAt: { $gte: sevenDaysAgo } }).sort({ createdAt: -1 }).limit(4)
     const featured = await Products.find({ isListed: true, isDeleted: false }).limit(4)
     return {
       success: true,
@@ -168,6 +168,8 @@ const getProductsByCategoryService = async (slug, queryParams) => {
     const categoryDoc = await Category.findOne({ 
       categoryName: { $regex: new RegExp(`^${slug}$`, 'i') } 
     });
+
+    console.log("categoryDoc : ",categoryDoc)
 
     if (!categoryDoc) {
       throw new Error(`Category '${slug}' not found`);
