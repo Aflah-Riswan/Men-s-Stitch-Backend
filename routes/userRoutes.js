@@ -1,11 +1,11 @@
+import express from 'express';
+import { admin, protect } from '../middlewares/authMiddleware.js';
+import { getUsers, blockUser, getCustomerAnalytics } from '../controllers/userController.js';
 
-const express = require('express')
-const router = express.Router()
-const { admin, protect } = require('../middlewares/authMiddleware')
-const { getUsers, blockUser, getCustomerAnalytics } = require('../controllers/userController')
+const router = express.Router();
 
-router.get('/',protect,admin,getUsers)
-router.get('/analytics', getCustomerAnalytics)
-router.patch('/:id/block',blockUser)
+router.get('/', protect, admin, getUsers);
+router.get('/analytics', getCustomerAnalytics);
+router.patch('/:id/block', blockUser);
 
-module.exports = router
+export default router;

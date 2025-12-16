@@ -1,8 +1,8 @@
+import express from 'express';
+import { getFeaturedReview } from '../controllers/reviewController.js';
 
-const express = require('express')
-const { getFeaturedReview } = require('../controllers/reviewController')
-const router = express.Router()
+const router = express.Router();
 
-router.get('/featured',getFeaturedReview)
+router.get('/featured', getFeaturedReview);
 
-module.exports = router
+export default router;

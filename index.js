@@ -1,31 +1,41 @@
-require("dotenv").config();
-const express = require('express')
-const cors = require('cors');
-const { connectDB } = require('./config/db');
-const authRoutes =require('./routes/authRoutes')
-const cookieParser = require("cookie-parser");
-const uploadRoutes = require('./routes/upload')
-const categoryRoutes = require('./routes/categoryRoutes')
-const productRoutes = require('./routes/productRoutes')
-const userRoutes = require('./routes/userRoutes')
-const reviewRoutes = require('./routes/reviewRoutes')
-const app = express()
-connectDB()
-console.log("index.js loaded")
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import { connectDB } from './config/db.js';
+import authRoutes from './routes/authRoutes.js';
+import cookieParser from 'cookie-parser';
+import uploadRoutes from './routes/upload.js';
+import categoryRoutes from './routes/categoryRoutes.js';
+import productRoutes from './routes/productRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import reviewRoutes from './routes/reviewRoutes.js';
+
+const app = express();
+const PORT = 3000;
+
+// Connect to the Database
+connectDB();
+
+console.log("index.js loaded");
+
+// Middleware
 app.use(cors({
-  origin:'http://localhost:5173',
-  credentials:true,
-  methods:['GET','POST','PUT','DELETE','PATCH'],
-  allowedHeaders:['Content-Type','Authorization']
+  origin: 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json())
-app.use(cookieParser())
-app.use('/api/auth',authRoutes)
-app.use('/api',uploadRoutes)
-app.use('/api/categories',categoryRoutes)
-app.use('/api/products',productRoutes)
-app.use('/api/users',userRoutes)
-app.use('/api/reviews',reviewRoutes)
 
+app.use(express.json());
+app.use(cookieParser());
 
-app.listen(3000, () => console.log('server is running..'))
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api', uploadRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/reviews', reviewRoutes);
+
+// Server Start
+app.listen(PORT, () => console.log(`Server is running on port ${PORT}...`));

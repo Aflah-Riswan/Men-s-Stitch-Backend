@@ -1,7 +1,6 @@
+import joi from 'joi';
 
-const joi = require('joi')
-
-const validateCategory = (req, res, next) => {
+export const validateCategory = (req, res, next) => {
 
   const schema = joi.object({
     categoryName: joi.string().min(3).required().messages({ 'string.empty': 'Category name is required', 'string.min': 'Category name must be greater than 3 characters' }),
@@ -20,24 +19,23 @@ const validateCategory = (req, res, next) => {
 
     parentCategory: joi.alternatives().try(
       joi.string().hex().length(24),
-      joi.string().valid('none', ''), 
+      joi.string().valid('none', ''),
       joi.allow(null)
     ).optional(),
     isListed: joi.boolean(),
     isFeatured: joi.boolean()
-  }).unknown(true)
+  }).unknown(true);
 
-  const { error } = schema.validate(req.body)
+  const { error } = schema.validate(req.body);
   if (error) {
     console.log("joi Validation Failed:", error.details[0].message);
     return res.status(400).json({
       success: false,
       message: error.details[0].message
-    })
+    });
   }
 
-  next()
-}
+  next();
+};
 
-
-module.exports = validateCategory
+export default validateCategory;

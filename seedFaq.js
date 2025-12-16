@@ -1,9 +1,6 @@
-
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-const Product = require('./models/products'); // ⚠️ Check this path matches your file structure
-
-dotenv.config();
+import mongoose from 'mongoose';
+import 'dotenv/config';
+import Product from './models/products.js';
 
 // 1. DATABASE CONNECTION
 const MONGO_URI = process.env.MONGO_URL || 'mongodb://localhost:27017/your_database_name';
@@ -47,19 +44,19 @@ const seedFaqs = async () => {
 
     // 4. LOOP AND UPDATE
     for (const product of products) {
-      
+
       // Pick 3 random FAQs from the pool
       const shuffled = faqPool.sort(() => 0.5 - Math.random());
       const selectedFaqs = shuffled.slice(0, 3); // Get first 3
 
       // Update the product
       product.faqs = selectedFaqs;
-      
+
       await product.save();
     }
 
     console.log('✅ Success! FAQs added to all products.');
-    process.exit();
+    process.exit(0);
 
   } catch (error) {
     console.error('❌ Error:', error);

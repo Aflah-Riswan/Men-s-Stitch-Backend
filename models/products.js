@@ -1,5 +1,4 @@
-
-const mongoose = require('mongoose')
+import mongoose from 'mongoose';
 
 const stockSchema = new mongoose.Schema({
   XS: { type: Number, default: 0 },
@@ -8,21 +7,19 @@ const stockSchema = new mongoose.Schema({
   L: { type: Number, default: 0 },
   XL: { type: Number, default: 0 },
   XXL: { type: Number, default: 0 }
-}, { _id: false })
+}, { _id: false });
 
 const variantsSchema = new mongoose.Schema({
   productColor: { type: String, required: true },
   colorCode: { type: String, required: true },
   variantImages: { type: [String] },
   stock: stockSchema
-})
+});
 
 const ratingSchema = new mongoose.Schema({
   average: { type: Number, default: 0 },
   count: { type: Number, default: 0 }
 }, { _id: false });
-
-
 
 const productSchema = new mongoose.Schema({
   productName: { type: String, required: true },
@@ -48,7 +45,7 @@ const productSchema = new mongoose.Schema({
   deletedAt: { type: Date, default: null }
 },
   { timestamps: true }
-)
+);
 
 productSchema.virtual('reviews', {
   ref: 'Review',
@@ -58,5 +55,6 @@ productSchema.virtual('reviews', {
 
 productSchema.set('toObject', { virtuals: true });
 productSchema.set('toJSON', { virtuals: true });
-const Products = mongoose.model('Products', productSchema)
-module.exports = Products
+
+const Products = mongoose.model('Products', productSchema);
+export default Products;

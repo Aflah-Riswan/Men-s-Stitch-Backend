@@ -1,7 +1,6 @@
+import Users from '../models/users.js';
 
-const Users = require('../models/users')
-
-const getUserService = async (data) => {
+export const getUserService = async (data) => {
   try {
     const {
       page = Number(data.page) || 1,
@@ -9,27 +8,27 @@ const getUserService = async (data) => {
       sort,
       active,
       search
-    } = data
+    } = data;
 
-    const skip = (page - 1) * limit
+    const skip = (page - 1) * limit;
 
-    let = filter = { role: 'user' }
+    let filter = { role: 'user' };
     filter.$or = [
       { firstName: { $regex: search, $options: 'i' } },
       { lastName: { $regex: search, $options: 'i' } }
-    ]
-    if (active === 'active') filter.isBlocked = false
-    if (active === 'inactive') filter.isBlocked = true
+    ];
+    if (active === 'active') filter.isBlocked = false;
+    if (active === 'inactive') filter.isBlocked = true;
 
-    let sortQuery = { createdAt: -1 }
-    if (sort === 'oldest') sortQuery = { createdAt: 1 }
-    if (sort === 'newest') sortQuery = { createdAt: -1 }
-    if (sort === 'a-z') sortQuery = { firstName: 1 }
-    if (sort === 'z-a') sortQuery = { firstName: -1 }
+    let sortQuery = { createdAt: -1 };
+    if (sort === 'oldest') sortQuery = { createdAt: 1 };
+    if (sort === 'newest') sortQuery = { createdAt: -1 };
+    if (sort === 'a-z') sortQuery = { firstName: 1 };
+    if (sort === 'z-a') sortQuery = { firstName: -1 };
 
-    const users = await Users.find(filter).sort(sortQuery).skip(skip).limit(limit)
+    const users = await Users.find(filter).sort(sortQuery).skip(skip).limit(limit);
 
-    const totalUsers = await Users.countDocuments(filter)
+    const totalUsers = await Users.countDocuments(filter);
     if (users) {
       return {
         success: true,
@@ -37,37 +36,39 @@ const getUserService = async (data) => {
         users,
         totalPages: Math.ceil(totalUsers / limit),
         currentPage: page
-      }
+      };
     } else {
-      return { success: false, message: ' cant to fetch data ' }
+      return { success: false, message: ' cant to fetch data ' };
     }
 
   } catch (error) {
-    console.log(error)
-    return { success: false, message: ' something went wrong ' }
+    console.log(error);
+    return { success: false, message: ' something went wrong ' };
   }
-}
+};
 
-const blockUserService = async (userId) => {
+export const blockUserService = async (userId) => {
   try {
-    const user = await Users.findOne({ _id: userId })
-    if (!user) return { success: false, message: ' user is not found' }
-    user.isBlocked = !user.isBlocked
-    await user.save()
-    return { success: true, message: 'updated succesfully' }
+    const user = await Users.findOne({ _id: userId });
+    if (!user) return { success: false, message: ' user is not found' };
+    user.isBlocked = !user.isBlocked;
+    await user.save();
+    return { success: true, message: 'updated succesfully' };
   } catch (error) {
-    return { success: false, message: ' something went wrong' }
+    return { success: false, message: ' something went wrong' };
   }
-}
+};
 
-const analyticsService = async () => {
+export const analyticsService = async () => {
   try {
-    const sevenDaysAgo = new Date()
-    console.log(sevenDaysAgo)
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 1)
-    const totalCustomers = await Users.countDocuments({ role: 'user' })
-    const newCustomers = await Users.countDocuments({ role: 'user', createdAt: { $gte: sevenDaysAgo } })
-    const blockedCustomers = await Users.countDocuments({ isBlocked: true })
+    const sevenDaysAgo = new Date();
+    console.log(sevenDaysAgo);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7); // Corrected to 7 days ago
+    
+    const totalCustomers = await Users.countDocuments({ role: 'user' });
+    const newCustomers = await Users.countDocuments({ role: 'user', createdAt: { $gte: sevenDaysAgo } });
+    const blockedCustomers = await Users.countDocuments({ isBlocked: true });
+    
     const chartDataRaw = await Users.aggregate([
       {
         $match: {
@@ -83,7 +84,8 @@ const analyticsService = async () => {
       {
         $sort: { _id: 1 }
       }
-    ])
+    ]);
+    
     const chartData = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
@@ -97,6 +99,7 @@ const analyticsService = async () => {
         fullDate: dateString
       });
     }
+    
     return {
       success: true,
       stats: {
@@ -104,10 +107,10 @@ const analyticsService = async () => {
         new: newCustomers,
         blocked: blockedCustomers,
       },
-       chart: chartData
-    }
+      chart: chartData
+    };
   } catch (error) {
-    return { success: false, message: 'something went wrong' }
+    console.log(error);
+    return { success: false, message: 'something went wrong' };
   }
-}
-module.exports = { getUserService, blockUserService, analyticsService }
+};

@@ -1,13 +1,10 @@
-
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
+import mongoose from 'mongoose';
+import 'dotenv/config'; // Used to load environment variables in ESM
 
 // 1. IMPORT YOUR MODELS (Adjust paths if needed!)
-const Product = require('./models/products'); 
-const User = require('./models/users');       
-const Review = require('./models/review');   
-
-dotenv.config();
+import Product from './models/products.js';
+import User from './models/users.js';
+import Review from './models/review.js';
 
 // 2. CONFIG
 const MONGO_URI = process.env.MONGO_URL || 'mongodb://localhost:27017/your_db_name';
@@ -32,11 +29,14 @@ const seedReviews = async () => {
 
     // 4. GET EXISTING DATA
     const products = await Product.find({});
+    // Note: Assuming 'name' field might not exist on User, but will use 'firstName' or 'lastName' if available.
+    // If the User model only has 'firstName' and 'lastName', you might need to adjust:
+    // userName: `${randomUser.firstName} ${randomUser.lastName}`
     const users = await User.find({});
 
     if (products.length === 0 || users.length === 0) {
       console.log('❌ Error: You need Products and Users in your DB first.');
-      process.exit();
+      process.exit(0); // Exit gracefully if prerequisites not met
     }
 
     console.log(`Found ${products.length} products. Generating reviews...`);
@@ -55,11 +55,14 @@ const seedReviews = async () => {
         const randomRating = Math.floor(Math.random() * (5 - 3 + 1)) + 3; // Random rating 3-5
         const randomComment = comments[Math.floor(Math.random() * comments.length)];
 
+        // Determine user name: Use firstName, or fall back to 'Anonymous'
+        const userName = randomUser.firstName || 'Anonymous'; 
+
         // Create Review Document
         await Review.create({
           product: product._id,
           user: randomUser._id,
-          userName: randomUser.name || "Anonymous", // Adjust field based on User model
+          userName: userName, // Use the determined name
           rating: randomRating,
           comment: randomComment,
           isVerifiedPurchase: true,
@@ -74,18 +77,18 @@ const seedReviews = async () => {
       // 6. UPDATE PRODUCT AGGREGATES
       // This is crucial so your ProductCard shows the stars immediately
       const averageRating = (totalRating / reviewCount).toFixed(1);
-      
+
       product.rating = {
         average: Number(averageRating),
         count: reviewCount
       };
-      
+
       await product.save();
       process.stdout.write('.'); // Show progress dot
     }
 
     console.log('\n✅ Success! All products have new reviews and updated ratings.');
-    process.exit();
+    process.exit(0);
 
   } catch (error) {
     console.error('\n❌ Error:', error);

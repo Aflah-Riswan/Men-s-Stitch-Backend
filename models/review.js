@@ -1,15 +1,14 @@
-
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const reviewSchema = new mongoose.Schema({
   product: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Product', 
+    ref: 'Product',
     required: true
   },
   user: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',   
+    ref: 'User',
     required: true
   },
   userName: {
@@ -34,12 +33,13 @@ const reviewSchema = new mongoose.Schema({
   },
   isApproved: {
     type: Boolean,
-    default: true 
+    default: true
   }
 }, {
-  timestamps: true 
+  timestamps: true
 });
 
 reviewSchema.index({ product: 1, user: 1 }, { unique: true });
 
-module.exports = mongoose.model('Review', reviewSchema);
+const Review = mongoose.model('Review', reviewSchema);
+export default Review;

@@ -1,8 +1,6 @@
+import joi from 'joi';
 
-
-const joi = require('joi')
-
-const validateProduct = (req, res, next) => {
+export const validateProduct = (req, res, next) => {
   const schema = joi.object({
     productName: joi.string().min(3).required().messages({ 'string.empty': 'product name cant be empty ', 'string.min': 'product name should be minimum value of 3 letters' }),
 
@@ -12,7 +10,7 @@ const validateProduct = (req, res, next) => {
 
     originalPrice: joi.number().min(1).required().messages({ 'number.base': 'original price must be a number', 'number.min': 'original price should b egreater than 0', 'any.required': 'original price is reauired', }),
 
-    salePrice: joi.number().min(1).required().less(joi.ref('originalPrice')).messages({ 'number.base': 'sale price should be a number', 'number.min': 'sales should be greater than 0', 'any.required': 'sale price is required','number.less': 'Sale Price must be less than Original Price' }),
+    salePrice: joi.number().min(1).required().less(joi.ref('originalPrice')).messages({ 'number.base': 'sale price should be a number', 'number.min': 'sales should be greater than 0', 'any.required': 'sale price is required', 'number.less': 'Sale Price must be less than Original Price' }),
 
     mainCategory: joi.string().hex().length(24).required().messages({ 'any.required': 'main category is required', 'string.base': 'invalid category selection', 'string.hex': 'invalid category selection ', 'string.length': 'invalid category selction' }),
 
@@ -59,21 +57,17 @@ const validateProduct = (req, res, next) => {
     }),
     isListed: joi.boolean().default(true),
 
-  })
+  });
 
-  const {error} = schema.validate(req.body)
-  console.log(error)
-  if(error){
-    console.log(" error found in joi validation in products : ",error.details[0].message)
+  const { error } = schema.validate(req.body);
+  console.log(error);
+  if (error) {
+    console.log(" error found in joi validation in products : ", error.details[0].message);
     return res.status(400).json({
-      success:false,
-      message:error.details[0].message
-    })
+      success: false,
+      message: error.details[0].message
+    });
   }
 
-  next()
-}
-
-module.exports = { validateProduct }
-
-
+  next();
+};

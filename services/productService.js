@@ -1,7 +1,9 @@
+// productsService.js (Assuming this file name)
 
-const Products = require('../models/products')
-const Category = require('../models/category')
-const createProductService = async (data) => {
+import Products from '../models/products.js'; // Added .js extension
+import Category from '../models/category.js'; // Added .js extension
+
+export const createProductService = async (data) => {
   try {
     if (!data) return { success: false, message: 'data is empty' }
     const response = new Products(data)
@@ -14,7 +16,7 @@ const createProductService = async (data) => {
   }
 }
 
-const getProductsService = async (data) => {
+export const getProductsService = async (data) => {
   try {
     const {
       page = Number(data.page) || 1,
@@ -70,38 +72,38 @@ const getProductsService = async (data) => {
 
   } catch (error) {
     console.log(error)
+    return { success: false, message: error.message || 'Error in fetching products' }
   }
 }
 
-const productToggleIsList = async (id) => {
-
+export const productToggleIsList = async (id) => {
   try {
+    // Note: The original code was missing the 'error' parameter in catch block. Fixed here.
     const response = await Products.findByIdAndUpdate(id, [{ $set: { isListed: { $not: '$isListed' } } }], { new: true })
     console.log("finished")
     if (!response) return { success: false, message: 'Product is not existed' }
 
     return { success: true, updatedData: response }
 
-  } catch {
+  } catch (error) {
     return { success: false, message: error.message }
   }
-
 }
 
-const updateProductService = async (id, data) => {
+export const updateProductService = async (id, data) => {
   try {
     const updatedProduct = await Products.findByIdAndUpdate({ _id: id }, { $set: data }, { new: true })
     console.log(updatedProduct)
     console.log("helllloooo")
     return { success: true, updatedProduct }
   } catch (error) {
-
     console.log("error in updating data : ", error)
-    return { success: false, message: error }
+    // Note: Returning 'message: error' might be wrong, returning error.message is safer
+    return { success: false, message: error.message || 'Error in updating product' }
   }
 }
-const deleteProductService = async (id) => {
 
+export const deleteProductService = async (id) => {
   try {
     const response = await Products.findByIdAndUpdate({ _id: id }, { isDeleted: true }, { new: true })
 
@@ -112,7 +114,7 @@ const deleteProductService = async (id) => {
   }
 }
 
-const getProductHomeService = async () => {
+export const getProductHomeService = async () => {
   try {
     const products = await Products.find({ isDeleted: false, isListed: true })
     const sevenDaysAgo = new Date()
@@ -130,7 +132,8 @@ const getProductHomeService = async () => {
     return { success: false, message: ' something went wrong' }
   }
 }
-const getProductByIdHomeService = async (id) => {
+
+export const getProductByIdHomeService = async (id) => {
   try {
     const product = await Products.findById({ _id: id }).populate({
       path: 'reviews',
@@ -153,7 +156,7 @@ const getProductByIdHomeService = async (id) => {
 }
 
 
-const getProductsByCategoryService = async (slug, queryParams) => {
+export const getProductsByCategoryService = async (slug, queryParams) => {
   try {
     const {
       minPrice,
@@ -231,6 +234,3 @@ const getProductsByCategoryService = async (slug, queryParams) => {
     throw new Error(error.message);
   }
 };
-
-
-module.exports = { createProductService, getProductsService, productToggleIsList, updateProductService, deleteProductService, getProductHomeService, getProductByIdHomeService, getProductsByCategoryService } 
