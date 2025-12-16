@@ -1,6 +1,7 @@
 const User = require("../models/users")
 const { sendEmail } = require("../utils/sendEmail")
 const { validateUserLogin, validateUserSignup } = require("../utils/userValidate")
+const Otp = require('../models/OtpTemp')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 
@@ -105,56 +106,66 @@ const createUserService = async (data) => {
 }
 
 const forgotPassWordService = async (email) => {
+  console.log("inside forgot")
   try {
+   
     const user = await User.findOne({ email })
-    if (!user) return { success: false, message: 'The user in not already exist' }
+    if (!user) return { success: false, message: 'The user does not exist' }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString()
-    user.resetPasswordOTP = otp
-    user.resetPasswordExpires = Date.now() + 5 * 60 * 1000;
-    await user.save()
 
+    await Otp.deleteMany({ email: email });
+
+ 
+    await Otp.create({
+      email: email,
+      otp: otp
+    });
+
+   
     const htmlMessage = `
         <div style="font-family: Arial, sans-serif; text-align: center;">
           <h2>Verification Code</h2>
-          <p>Please use the following code to sign in:</p>
+          <p>Please use the following code to reset your password:</p>
           <h1 style="color: #4CAF50; letter-spacing: 5px;">${otp}</h1>
-          <p>This code expires in 10 minutes.</p>
+          <p>This code expires in 5 minutes.</p>
         </div>
     `;
 
     const emailRespond = await sendEmail(user.email, 'Your OTP for Verification', htmlMessage)
+
+  
     if (emailRespond) {
-      return { success: emailRespond.success, message: emailRespond.message }
+      return { success: true, message: 'OTP sent successfully to your email' }
+    } else {
+     
+      return { success: false, message: 'Failed to send OTP email' }
     }
+
   } catch (error) {
-    console.log(error)
+    console.log("Forgot Password Error:", error)
+    return { success: false, message: error.message }
   }
 }
 
 const verifyOtpService = async (email, inputOtp) => {
   try {
+ 
     const user = await User.findOne({ email })
-    if (!user) return { success: false, message: 'user is not found' }
-    if (user.resetPasswordExpires > Date.now()) {
-      console.log(inputOtp)
-      console.log(user.resetPasswordOTP)
-      if (user.resetPasswordOTP === inputOtp) {
+    if (!user) return { success: false, message: 'User not found' }
+    const otpRecord = await Otp.findOne({ email: email, otp: inputOtp });
 
-        return { success: true, message: 'successfull verified' }
+    if (otpRecord) {
+      await Otp.deleteOne({ _id: otpRecord._id });
 
-      } else {
+      return { success: true, message: 'Successfully verified' }
 
-        return { success: false, message: 'invalid otp code' }
-
-      }
     } else {
-
-      return { success: false, message: 'time is expired resend otp' }
-
+      return { success: false, message: 'Invalid or expired OTP code' }
     }
+
   } catch (error) {
-    console.log(error)
+    console.log("Verify OTP Error:", error)
     return { success: false, message: error.message }
   }
 }
@@ -170,8 +181,8 @@ const resetPasswordService = async (email, password) => {
       return { success: false, message: ' cant find the user' }
     }
   } catch (error) {
-    return {success:false,message : error.message}
+    return { success: false, message: error.message }
   }
 }
 
-module.exports = { loginService, refreshAccessTokenService, createUserService, forgotPassWordService, verifyOtpService , resetPasswordService}
+module.exports = { loginService, refreshAccessTokenService, createUserService, forgotPassWordService, verifyOtpService, resetPasswordService }

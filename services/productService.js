@@ -114,10 +114,10 @@ const deleteProductService = async (id) => {
 
 const getProductHomeService = async () => {
   try {
-    const products = await Products.find({ isDeleted: false ,isListed : true})
+    const products = await Products.find({ isDeleted: false, isListed: true })
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    const newArrivals = await Products.find({ isDeleted: false, isListed:true, createdAt: { $gte: sevenDaysAgo } }).sort({ createdAt: -1 }).limit(4)
+    const newArrivals = await Products.find({ isDeleted: false, isListed: true, createdAt: { $gte: sevenDaysAgo } }).sort({ createdAt: -1 }).limit(4)
     const featured = await Products.find({ isListed: true, isDeleted: false }).limit(4)
     return {
       success: true,
@@ -155,31 +155,31 @@ const getProductByIdHomeService = async (id) => {
 
 const getProductsByCategoryService = async (slug, queryParams) => {
   try {
-    const { 
-      minPrice, 
-      maxPrice, 
-      sizes,  
-      page = 1, 
+    const {
+      minPrice,
+      maxPrice,
+      sizes,
+      page = 1,
       limit = 10,
       search,
-      ...dynamicFilters 
+      ...dynamicFilters
     } = queryParams;
-
-    const categoryDoc = await Category.findOne({ 
-      categoryName: { $regex: new RegExp(`^${slug}$`, 'i') } 
-    });
-
-    console.log("categoryDoc : ",categoryDoc)
-
-    if (!categoryDoc) {
-      throw new Error(`Category '${slug}' not found`);
-    }
 
     let filter = {
       isDeleted: false,
       isListed: true,
-      mainCategory: categoryDoc._id 
     };
+    if (slug.toLowerCase() !== 'all') {
+      const categoryDoc = await Category.findOne({
+        categoryName: { $regex: new RegExp(`^${slug}$`, 'i') }
+      });
+
+      if (!categoryDoc) {
+        throw new Error(`Category '${slug}' not found`);
+      }
+
+      filter.mainCategory = categoryDoc._id;
+    }
 
     if (minPrice || maxPrice) {
       filter.salePrice = {};
@@ -190,7 +190,7 @@ const getProductsByCategoryService = async (slug, queryParams) => {
     if (sizes) {
       const sizeArray = sizes.split(',');
       filter.$or = sizeArray.map(size => ({
-        [`variants.stock.${size.toUpperCase()}`]: { $gt: 0 } 
+        [`variants.stock.${size.toUpperCase()}`]: { $gt: 0 }
       }));
     }
 
@@ -201,8 +201,8 @@ const getProductsByCategoryService = async (slug, queryParams) => {
     Object.keys(dynamicFilters).forEach(key => {
       if (key.startsWith('attr_')) {
         const actualAttributeName = key.replace('attr_', '');
-        const values = dynamicFilters[key].split(','); 
-        const regexValues = values.map(v => new RegExp(`^${v}$`, 'i'));  
+        const values = dynamicFilters[key].split(',');
+        const regexValues = values.map(v => new RegExp(`^${v}$`, 'i'));
         filter[`attributes.${actualAttributeName}`] = { $in: regexValues };
       }
     });
@@ -216,7 +216,7 @@ const getProductsByCategoryService = async (slug, queryParams) => {
       .limit(limitNum);
 
     const totalCount = await Products.countDocuments(filter);
-    console.log(" products : ",products)
+    console.log(" products : ", products)
     return {
       success: true,
       products,
@@ -233,4 +233,4 @@ const getProductsByCategoryService = async (slug, queryParams) => {
 };
 
 
-module.exports = { createProductService, getProductsService, productToggleIsList, updateProductService, deleteProductService, getProductHomeService, getProductByIdHomeService , getProductsByCategoryService} 
+module.exports = { createProductService, getProductsService, productToggleIsList, updateProductService, deleteProductService, getProductHomeService, getProductByIdHomeService, getProductsByCategoryService } 
