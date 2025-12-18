@@ -53,6 +53,15 @@ productSchema.virtual('reviews', {
   foreignField: 'product'
 });
 
+productSchema.index({
+  productName : 'text',
+  productDescription : 'text',
+  "attributes.$**": "text",
+  tags:'text'
+},{
+ weights : { productName : 10 , productDescription : 5 , "attributes.$**": 3,  tags : 2}
+} )
+
 productSchema.set('toObject', { virtuals: true });
 productSchema.set('toJSON', { virtuals: true });
 

@@ -1,16 +1,11 @@
 import * as reviewService from '../services/reviewService.js';
 
-export const getFeaturedReview = async (req, res) => {
+export const getFeaturedReview = async (req, res, next) => {
   try {
     const response = await reviewService.getFeaturedReviewService();
-    if (response.success) {
-      return res.json(response);
-    } else {
-      console.log(response);
-      return res.json(response);
-    }
+    return res.status(200).json(response);
   } catch (error) {
-    console.log(error);
-    return res.json({ success: true, message: 'something went wrong' });
+    console.error("Error in getFeaturedReview controller:", error);
+    next(error);
   }
 };

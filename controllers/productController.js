@@ -1,20 +1,18 @@
 import Products from '../models/products.js';
 import * as productService from '../services/productService.js';
 
-export const createProduct = async (req, res) => {
+export const createProduct = async (req, res, next) => {
   try {
     const data = req.body;
     const response = await productService.createProductService(data);
-    if (response.success) return res.status(201).json(response);
-    else return res.status(401).json(response);
+    // Since service throws on failure, if we are here, it's a success
+    return res.status(201).json(response);
   } catch (error) {
-    console.log("error found  : ", error);
-    // Fixed typo: res.satus -> res.status
-    return res.status(400).json(error.message);
+    next(error);
   }
 };
 
-export const getProducts = async (req, res) => {
+export const getProducts = async (req, res, next) => {
   try {
     const {
       page = 1,
@@ -27,133 +25,104 @@ export const getProducts = async (req, res) => {
       status = ''
     } = req.query;
 
-    const response = await productService.getProductsService(
-      {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        search,
-        category,
-        minPrice,
-        maxPrice,
-        sort,
-        status
+    const response = await productService.getProductsService({
+      page: parseInt(page),
+      limit: parseInt(limit),
+      search,
+      category,
+      minPrice,
+      maxPrice,
+      sort,
+      status
+    });
+
+    return res.status(200).json({
+      success: true,
+      products: response.products,
+      pagination: {
+        totalPages: response.totalPages,
+        currentPage: response.currentPage,
+        hasNextPage: response.currentPage < response.totalPages,
+        hasPrevPage: response.currentPage > 1
       }
-    );
-
-    if (response.success) {
-      console.log("inside condition");
-      return res.status(201).json({
-        success: response.success,
-        products: response.products,
-        pagination: {
-          totalPages: response.totalPages,
-          currentPage: response.currentPage,
-          hasNextPage: response.currentPage < response.totalProduct,
-          hasPrevPage: response.currentPage > 1
-        }
-      });
-    } else {
-      return res.json({ success: false, message: response.message });
-    }
-
+    });
   } catch (error) {
-    console.log("errror : ", error);
-    return res.json({ success: false, message: error.message });
+    next(error);
   }
 };
 
-export const productToggleIsList = async (req, res) => {
+export const productToggleIsList = async (req, res, next) => {
   try {
     const { id } = req.params;
     const response = await productService.productToggleIsList(id);
-    if (response.success) return res.json({ success: true, updatedData: response.updatedData });
-    else return res.json({ success: false, message: response.message });
-
+    return res.status(200).json({ success: true, updatedData: response.updatedData });
   } catch (error) {
-    return res.json({ success: false, message: error.message });
+    next(error);
   }
 };
 
-export const getProductById = async (req, res) => {
+export const getProductById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const product = await Products.findById(id);
-    if (!product) return res.json({ success: false, message: 'product is not found' });
-    return res.json({ success: true, product });
-
-  } catch (error) {
-    console.log(error);
-    return res.json({ success: false, message: error.message });
-  }
-};
-
-export const updateProduct = async (req, res) => {
-  const { id } = req.params;
-  const data = req.body;
-  try {
-    const response = await productService.updateProductService(id, data);
-    console.log("response : ", response);
-    if (response.success) {
-      return res.status(201).json({ success: true, updatedProduct: response.updatedProduct });
-    } else {
-      return res.json({ success: false, message: response.message });
+    
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
     }
+    
+    return res.status(200).json({ success: true, product });
   } catch (error) {
-    return res.json({ success: false, message: error });
+    next(error);
   }
 };
 
-export const deleteProduct = async (req, res) => {
+export const updateProduct = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const data = req.body;
+    const response = await productService.updateProductService(id, data);
+    return res.status(200).json({ success: true, updatedProduct: response.updatedProduct });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
     const response = await productService.deleteProductService(id);
-    if (response.success) return res.json({ success: true, deletedData: response.deletedData });
-    else return res.json({ success: false, message: response.message });
+    return res.status(200).json({ success: true, deletedData: response.deletedData });
   } catch (error) {
-    return res.json({ success: false, message: error.message });
+    next(error);
   }
 };
 
-export const getProductsHome = async (req, res) => {
+export const getProductsHome = async (req, res, next) => {
   try {
     const response = await productService.getProductHomeService();
-    console.log(" response : ", response);
-    if (response.success) {
-      return res.json(response);
-    } else {
-      console.log(response);
-      return res.json(response);
-    }
+    return res.status(200).json(response);
   } catch (error) {
-    console.log(" response : ", error);
-    return res.json({ succcess: false, message: error.message });
+    next(error);
   }
 };
 
-export const getProductByIdHome = async (req, res) => {
+export const getProductByIdHome = async (req, res, next) => {
   try {
     const { id } = req.params;
     const response = await productService.getProductByIdHomeService(id);
-    if (response.success) {
-      return res.json(response);
-    } else {
-      console.log(response);
-      return res.json(response);
-    }
+    return res.status(200).json(response);
   } catch (error) {
-    console.log(error);
-    return res.json({ success: true, message: 'something went wrong ' });
+    next(error);
   }
 };
 
-export const getProductsByCategory = async (req, res) => {
-  const { slug } = req.params;
-  const queryParams = req.query;
-  console.log(slug);
+export const getProductsByCategory = async (req, res, next) => {
   try {
+    const { slug } = req.params;
+    const queryParams = req.query;
     const response = await productService.getProductsByCategoryService(slug, queryParams);
-    return res.json(response);
+    return res.status(200).json(response);
   } catch (error) {
-    return res.json({ success: false, message: error.message });
+    next(error);
   }
 };

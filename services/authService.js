@@ -4,6 +4,7 @@ import { validateUserLogin, validateUserSignup } from '../utils/userValidate.js'
 import Otp from '../models/OtpTemp.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import AppError from '../utils/appError.js';
 
 const genearteAccessToken = (user) => {
   return jwt.sign({ id: user._id, role: user.role }, process.env.ACCESS_TOKEN_KEY, { expiresIn: '1d' });
@@ -14,60 +15,49 @@ const generateRefreshToken = (user) => {
 };
 
 export const loginService = async (userData) => {
-  try {
-    console.log("inside login service services file");
+  
     const { error } = validateUserLogin(userData);
+    if (error) throw new AppError(error.details[0].message, 400, 'VALIDATION_ERROR');
 
-    if (error) return { success: false, error: error.details[0].message };
     const { email, password } = userData;
     const user = await User.findOne({ email });
-    if (!user) return { success: false, error: " user is not existed " };
+    if (!user) throw new AppError('User does not find', 404, 'USER_NOT_FOUND')
+
     const isMatch = await bcrypt.compare(password, user.password);
-    if (isMatch) {
-      const accessToken = genearteAccessToken(user);
-      console.log("accesstoken : ", accessToken);
+    if (!isMatch) throw new AppError('Invalid Email or Password ', 401, 'INVALID_CREDENTIALS')
 
-      const refreshToken = generateRefreshToken(user);
-      console.log("refreshtoken : ", refreshToken);
-      const updated = await User.findByIdAndUpdate(user._id, { refreshToken: refreshToken });
-      console.log(updated);
+    const accessToken = genearteAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
 
-      console.log("completed saving");
-      return { success: true, message: " Welcome to dashboard ", accessToken, refreshToken, role: user.role };
-    }
-    else return { success: false, error: 'Invalid credentials', };
-  } catch (error) {
-    console.log(error);
-  }
+    const updated = await User.findByIdAndUpdate(user._id, { refreshToken: refreshToken });
+    console.log("completed saving");
+    return { success: true, message: " Welcome to dashboard ", accessToken, refreshToken, role: user.role };
+
+  
 };
 
 export const refreshAccessTokenService = async (refreshToken) => {
 
-  try {
-    if (!refreshToken) {
-      return { success: false, message: "no refresh token" };
-    }
+    if (!refreshToken) throw new AppError('Session Expired Please Login again ', 401, 'NO_REFERESH_TOKEN')
+
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_KEY);
     const user = await User.findById(decoded.id);
-    if (!user) return { succeess: false, message: "user is not found " };
-    if (user.refreshToken !== refreshToken) return { success: false, message: 'invalid refresh token' };
+
+    if (!user || user.refreshToken !== refreshToken) throw new AppError('Invalid Session', 403, 'INVALID_REFRESH_TOKEN')
     const newAccessToken = genearteAccessToken(user);
     return { success: true, accessToken: newAccessToken };
-
-  } catch (error) {
-    console.log(" found error in refreshServie : ", error);
-  }
+ 
 };
 
 export const createUserService = async (data) => {
-  try {
+  
     const { error, value } = validateUserSignup(data);
-    if (error) return { success: false, message: error.details[0].message };
-    console.log("value : ", value);
+    if (error) throw new AppError(error.details[0].message, 400, 'VALIDATION ERROR')
+
     const { firstName, lastName, phone, email, password } = value;
     const isExisted = await User.findOne({ email });
     console.log("isEXISTED : ", isExisted);
-    if (isExisted) return { success: false, message: ' user already existed ' };
+    if (isExisted) throw new AppError('User already exists with this email ', 409, ' USER_ALREADY_EXIST')
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -95,28 +85,18 @@ export const createUserService = async (data) => {
         refreshToken,
         user: savedUser
       };
-    } else {
-      return {
-        success: false,
-        message: 'cant create an account'
-      };
     }
-  } catch (error) {
-    return { success: false, message: error.message };
-  }
+  
 };
 
 export const forgotPassWordService = async (email) => {
   console.log("inside forgot");
-  try {
-
+  
     const user = await User.findOne({ email });
-    if (!user) return { success: false, message: 'The user does not exist' };
+    if (!user) throw new AppError("Invalid or expired OTP", 400, 'INVALID_OTP');
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
     await Otp.deleteMany({ email: email });
-
 
     await Otp.create({
       email: email,
@@ -134,54 +114,33 @@ export const forgotPassWordService = async (email) => {
     `;
 
     const emailRespond = await sendEmail(user.email, 'Your OTP for Verification', htmlMessage);
+    if (!emailRespond) throw new AppError('Failed to send email. Please try again later.', 500, 'EMAIL_SEND_FAILED')
 
+    return { success: true, message: 'OTP sent successfully to your email' }
 
-    if (emailRespond) {
-      return { success: true, message: 'OTP sent successfully to your email' };
-    } else {
-
-      return { success: false, message: 'Failed to send OTP email' };
-    }
-
-  } catch (error) {
-    console.log("Forgot Password Error:", error);
-    return { success: false, message: error.message };
-  }
 };
 
 export const verifyOtpService = async (email, inputOtp) => {
-  try {
-
+  
     const user = await User.findOne({ email });
-    if (!user) return { success: false, message: 'User not found' };
+    if (!user) throw new AppError("User not found", 404, 'USER_NOT_FOUND');
+
     const otpRecord = await Otp.findOne({ email: email, otp: inputOtp });
+    if (!otpRecord) throw new AppError("Invalid or expired OTP code", 400, 'INVALID_OTP');
 
-    if (otpRecord) {
       await Otp.deleteOne({ _id: otpRecord._id });
-
       return { success: true, message: 'Successfully verified' };
 
-    } else {
-      return { success: false, message: 'Invalid or expired OTP code' };
-    }
-
-  } catch (error) {
-    console.log("Verify OTP Error:", error);
-    return { success: false, message: error.message };
-  }
+    
+  
 };
 
 export const resetPasswordService = async (email, password) => {
-  try {
+ 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     const user = await User.findOneAndUpdate({ email }, { $set: { password: hashedPassword } }, { $new: true });
-    if (user) {
-      return { success: true, message: ' updated succesfully' };
-    } else {
-      return { success: false, message: ' cant find the user' };
-    }
-  } catch (error) {
-    return { success: false, message: error.message };
-  }
+    if (!user) throw new AppError('Could not reset password. User not found.', 404, 'USER_NOT_FOUND');
+    return { success: true, message: ' updated succesfully' }
+ 
 };

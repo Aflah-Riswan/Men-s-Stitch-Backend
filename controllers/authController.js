@@ -1,115 +1,84 @@
 import * as authService from '../services/authService.js';
 
-export const loginUser = async (req, res) => {
-  console.log("inside loginuser auth controller");
+export const loginUser = async (req, res, next) => {
+
   try {
     const result = await authService.loginService(req.body);
-    console.log("result : ", result);
-    if (result.success) {
-      res.cookie("refreshToken", result.refreshToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "strict"
-      });
-      res.json({ success: true, message: result.message, accessToken: result.accessToken, role: result.role });
-    } else {
-      res.json({ success: false, message: result.error });
-    }
+    res.cookie("refreshToken", result.refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict"
+    });
+
+    return res.json({ success: true, message: result.message, accessToken: result.accessToken, role: result.role });
 
   } catch (error) {
-    return res.status(400).json({ message: 'we found some errors' });
+    next(error)
   }
 };
 
-export const refreshAccessToken = async (req, res) => {
+export const refreshAccessToken = async (req, res, next) => {
   try {
     const { refreshToken } = req.cookies;
     const result = await authService.refreshAccessTokenService(refreshToken);
 
-    if (result.succeess) { 
-      return res.json({
-        success: true,
-        accessToken: result.accessToken
-      });
-    } else {
-      return res.status(403).json({
-        success: false,
-        message: result.message
-      });
-    }
+    return res.json({
+      success: true,
+      accessToken: result.accessToken
+    });
 
   } catch (error) {
-    return res.status(400).json({ success: false, message: "something went wrong" });
+    next(error)
   }
 };
 
-export const createUser = async (req, res) => {
+export const createUser = async (req, res, next) => {
   try {
-    console.log(req.body);
+
     const response = await authService.createUserService(req.body);
-    console.log(response);
-    if (response.success) {
-      res.cookie('refreshToken', response.refreshToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'strict'
-      });
-      return res.json({
-        success: true, message: response.message,
-        accessToken: response.accessToken, role: response.user.role
-      });
-    }
-    else return res.json({ success: false, message: response.message });
+    res.cookie('refreshToken', response.refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict'
+    });
+    return res.json({
+      success: true, message: response.message,
+      accessToken: response.accessToken, role: response.user.role
+    });
 
   } catch (error) {
-    console.log(error);
-    return res.json({ success: false, message: error.message });
+    next(error)
   }
 };
 
-export const forgotPassword = async (req, res) => {
+export const forgotPassword = async (req, res, next) => {
   try {
     console.log(req.body);
     const { email } = req.body;
     const response = await authService.forgotPassWordService(email);
-    console.log(response);
-    if (response.success) {
-      return res.json({ success: response.success, message: response.message });
-    } else {
-      return res.json({ success: false, message: 'something went wrong' });
-    }
+    return res.json({ success: response.success, message: response.message });
   } catch (error) {
-    console.log(error);
-    return res.json({ success: false, message: error.message });
+    next(error)
   }
 };
 
-export const verifyOtp = async (req, res) => {
+export const verifyOtp = async (req, res, next) => {
   try {
     const { email, inputOtp } = req.body;
     const response = await authService.verifyOtpService(email, inputOtp);
-    if (response.success) {
-      return res.json(response);
-    } else {
-      return res.json(response);
-    }
+    return res.json(response);
   } catch (error) {
-    return res.json({ success: false, message: error.message });
+    next(error)
   }
 };
 
-export const resetPassword = async (req, res) => {
+export const resetPassword = async (req, res,next) => {
   try {
     const { email, password } = req.body;
     const response = await authService.resetPasswordService(email, password);
-    if (response.success) {
       return res.json(response);
-    } else {
-      console.log(response);
-      return res.json(response);
-    }
+    
   } catch (error) {
-    console.log(error);
-    return res.json({ success: false, message: 'something went wrong' });
+    next(error)
   }
 };

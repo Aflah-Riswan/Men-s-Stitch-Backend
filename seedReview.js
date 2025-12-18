@@ -55,14 +55,13 @@ const seedReviews = async () => {
         const randomRating = Math.floor(Math.random() * (5 - 3 + 1)) + 3; // Random rating 3-5
         const randomComment = comments[Math.floor(Math.random() * comments.length)];
 
-        // Determine user name: Use firstName, or fall back to 'Anonymous'
         const userName = randomUser.firstName || 'Anonymous'; 
 
-        // Create Review Document
         await Review.create({
           product: product._id,
           user: randomUser._id,
-          userName: userName, // Use the determined name
+          userName: userName,
+          
           rating: randomRating,
           comment: randomComment,
           isVerifiedPurchase: true,
@@ -74,8 +73,6 @@ const seedReviews = async () => {
         reviewCount++;
       }
 
-      // 6. UPDATE PRODUCT AGGREGATES
-      // This is crucial so your ProductCard shows the stars immediately
       const averageRating = (totalRating / reviewCount).toFixed(1);
 
       product.rating = {
@@ -84,7 +81,7 @@ const seedReviews = async () => {
       };
 
       await product.save();
-      process.stdout.write('.'); // Show progress dot
+      process.stdout.write('.'); 
     }
 
     console.log('\n✅ Success! All products have new reviews and updated ratings.');
