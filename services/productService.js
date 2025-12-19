@@ -46,7 +46,7 @@ export const getProductsService = async (data) => {
     if (minPrice) filterQuery.salePrice.$gte = Number(minPrice);
     if (maxPrice) filterQuery.salePrice.$lte = Number(maxPrice);
   }
-  
+
   if (status === 'active') filterQuery.isListed = true;
   if (status === 'inactive') filterQuery.isListed = false;
 
@@ -78,8 +78,8 @@ export const getProductsService = async (data) => {
 
 export const productToggleIsList = async (id) => {
   const response = await Products.findByIdAndUpdate(
-    id, 
-    [{ $set: { isListed: { $not: '$isListed' } } }], 
+    id,
+    [{ $set: { isListed: { $not: '$isListed' } } }],
     { new: true }
   );
 
@@ -92,8 +92,8 @@ export const productToggleIsList = async (id) => {
 
 export const updateProductService = async (id, data) => {
   const updatedProduct = await Products.findByIdAndUpdate(
-    { _id: id }, 
-    { $set: data }, 
+    { _id: id },
+    { $set: data },
     { new: true }
   );
 
@@ -106,28 +106,28 @@ export const updateProductService = async (id, data) => {
 
 export const deleteProductService = async (id) => {
   const response = await Products.findByIdAndUpdate(
-    { _id: id }, 
-    { isDeleted: true }, 
+    { _id: id },
+    { isDeleted: true },
     { new: true }
   );
 
   if (!response) {
     throw new AppError('Product not found', 404, 'PRODUCT_NOT_FOUND');
   }
-  
+
   return { success: true, deletedData: response };
 };
 
 export const getProductHomeService = async () => {
   const products = await Products.find({ isDeleted: false, isListed: true });
-  
+
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  
-  const newArrivals = await Products.find({ 
-    isDeleted: false, 
-    isListed: true, 
-    createdAt: { $gte: sevenDaysAgo } 
+
+  const newArrivals = await Products.find({
+    isDeleted: false,
+    isListed: true,
+    createdAt: { $gte: sevenDaysAgo }
   }).sort({ createdAt: -1 }).limit(4);
 
   const featured = await Products.find({ isListed: true, isDeleted: false }).limit(4);
@@ -154,7 +154,7 @@ export const getProductByIdHomeService = async (id) => {
   }
 
   const relatedProducts = await Products.find({
-    mainCategory: product.mainCategory, 
+    mainCategory: product.mainCategory,
     _id: { $ne: id },
     isDeleted: false,
     isListed: true
@@ -178,10 +178,10 @@ export const getProductsByCategoryService = async (slug, queryParams) => {
     isDeleted: false,
     isListed: true,
   };
-
+  const regexValue = new RegExp(`^${slug}$`, 'i')
   if (slug.toLowerCase() !== 'all') {
     const categoryDoc = await Category.findOne({
-      categoryName: { $regex: new RegExp(`^${slug}$`, 'i') }
+      categoryName: { $regex: regexValue }
     });
 
     if (!categoryDoc) {
@@ -211,15 +211,26 @@ export const getProductsByCategoryService = async (slug, queryParams) => {
   Object.keys(dynamicFilters).forEach(key => {
     if (key.startsWith('attr_')) {
       const actualAttributeName = key.replace('attr_', '');
-      const values = dynamicFilters[key].split(',');
-      const regexValues = values.map(v => new RegExp(`^${v}$`, 'i'));
-      filter[`attributes.${actualAttributeName}`] = { $in: regexValues };
+      const rawValues = dynamicFilters[key].split(',');
+      const regexValues = rawValues
+        .map(v => v.trim())
+        .filter(Boolean)  
+        .map(v => {
+          const escaped = v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          return new RegExp(`^${escaped}$`, 'i');
+        });
+
+      if (regexValues.length > 0) {
+        filter[`attributes.${actualAttributeName}`] = { $in: regexValues };
+      }
     }
   });
 
   const pageNum = Number(page);
   const limitNum = Number(limit);
   const skip = (pageNum - 1) * limitNum;
+
+  console.log("Final MongoDB Filter:", JSON.stringify(filter, null, 2));
 
   const products = await Products.find(filter)
     .skip(skip)
