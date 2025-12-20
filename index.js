@@ -9,7 +9,7 @@ import categoryRoutes from './routes/categoryRoutes.js';
 import productRoutes from './routes/productRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
-
+import couponRoutes from './routes/couponRoutes.js'
 const app = express();
 const PORT = 3000;
 
@@ -37,6 +37,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/coupons',couponRoutes)
 
 app.all('*any', (req, res, next) => {
   res.status(404).json({
@@ -48,6 +49,7 @@ app.all('*any', (req, res, next) => {
 app.use((err, req, res, next) => {
   const statusCode = err.statusCode || 500
   const errorCode = err.errorCode || 'INTERNAL_SERVER_PROBLEM'
+  console.log(err.message)
   res.status(statusCode).json({
     success: false,
     status: statusCode,
