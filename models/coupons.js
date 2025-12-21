@@ -22,6 +22,7 @@ const couponSchema = new mongoose.Schema({
   expiryDate: { type: Date, required: true },
   isActive: { type: Boolean, required: true, default: true },
   usedCount: { type: Number, default: 0 },
+  isDeleted : { type: Boolean , required: true , default : false},
 
 }, { timestamps: true }) 
 
