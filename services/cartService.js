@@ -46,3 +46,10 @@ export const addToCart = async (userId, cartData) => {
   const updatedCart = await cart.save();
   return updatedCart;
 }
+
+export const getCartItems = async (userId) => {
+  const user = await User.findById(userId)
+  if (!user) throw new AppError('User is not found', 404, 'USER_IS_NOT_FOUND')
+  const cartItems = Cart.findOne({ user: userId })
+  return cartItems
+}

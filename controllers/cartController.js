@@ -12,3 +12,12 @@ export const addToCart = async (req, res , next) =>{
     next(error)
   }
 }
+export const getCartItems = async(req,res,next)=>{
+  try {
+    const userId = req.user._id
+    const response = await cartService.getCartItems(userId)
+    return res.json(response)
+  } catch (error) {
+    next(error)
+  }
+}
