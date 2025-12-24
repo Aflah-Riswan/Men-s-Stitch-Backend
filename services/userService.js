@@ -1,3 +1,4 @@
+import User from '../models/users.js';
 import Users from '../models/users.js';
 import AppError from '../utils/appError.js';
 
@@ -107,3 +108,10 @@ export const analyticsService = async () => {
     chart: chartData
   };
 };
+export const getUserInfo = async (userId) =>{
+  console.log("id : ",userId)
+  const user = await User.findById(userId)
+  if(!user) throw new AppError("User is not found ",404 ,"USER_IS_NOT_FOUND")
+    console.log("user : ",user)
+  return user
+}

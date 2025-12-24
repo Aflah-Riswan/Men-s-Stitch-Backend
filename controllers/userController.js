@@ -36,3 +36,14 @@ export const getCustomerAnalytics = async (req, res, next) => {
     next(error);
   }
 };
+export const getUserInfo = async ( req , res , next) =>{
+  try {
+    console.log("reache here")
+    const userId = req.user._id
+    const response = await userService.getUserInfo(userId)
+    console.log("response",response)
+    return res.json(response)
+  } catch (error) {
+    next(error)
+  }
+}

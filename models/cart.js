@@ -6,7 +6,6 @@ const itemsSchema = new mongoose.Schema({
   size: { type: String, required: true },
   price: { type: Number, required: true },
   quantity: { type: Number, required: true, min: 1 },
-  // totalPrice is good to keep for quick fetching
   totalPrice: { type: Number, required: true } 
 });
 
