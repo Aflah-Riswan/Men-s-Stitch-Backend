@@ -2,11 +2,12 @@ import mongoose from 'mongoose';
 
 const itemsSchema = new mongoose.Schema({
   productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Products', required: true },
-  color: { type: String, required: true },
+  colorCode: { type: String, required: true },
   size: { type: String, required: true },
   price: { type: Number, required: true },
   quantity: { type: Number, required: true, min: 1 },
-  totalPrice: { type: Number, required: true } 
+  totalPrice: { type: Number, required: true } ,
+  variantId: { type: mongoose.Schema.Types.ObjectId, required: true },
 });
 
 const cartSchema = new mongoose.Schema({

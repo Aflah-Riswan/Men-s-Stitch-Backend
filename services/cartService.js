@@ -5,16 +5,17 @@ import AppError from "../utils/appError.js"
 export const addToCart = async (userId, cartData) => {
   const user = await User.findById(userId)
   if (!user) throw new AppError('User is not found ', 404, 'USER_IS_NOT_FOUND')
-  const { size, productId, color, price, quantity } = cartData
+  const { size, productId, colorCode, price, quantity, variantId } = cartData
   let cart = await Cart.findOne({ user: userId })
   if (!cart) {
     cart = new Cart({
       user: userId,
       items: [{
         productId,
-        color,
+        colorCode,
         size,
         price,
+        variantId,
         quantity: Number(quantity),
         totalPrice: price * quantity
       }]
@@ -22,7 +23,7 @@ export const addToCart = async (userId, cartData) => {
   } else {
     const itemIndex = cart.items.findIndex((item) =>
       item.productId.toString() === productId &&
-      item.color === color &&
+      item.colorCode === colorCode &&
       item.size === size
     )
     if (itemIndex > -1) {
@@ -31,10 +32,11 @@ export const addToCart = async (userId, cartData) => {
     } else {
       cart.items.push({
         productId,
-        color,
+        colorCode,
         size,
         price,
         quantity,
+        variantId,
         totalPrice: price * quantity
       });
     }
@@ -50,6 +52,29 @@ export const addToCart = async (userId, cartData) => {
 export const getCartItems = async (userId) => {
   const user = await User.findById(userId)
   if (!user) throw new AppError('User is not found', 404, 'USER_IS_NOT_FOUND')
-  const cartItems = Cart.findOne({ user: userId })
-  return cartItems
+  const cart = await Cart.findOne({ user: userId })
+    .populate({
+      path: 'items.productId',
+      select: 'productName variants salePrice'
+    }).lean()
+  cart.items.forEach(item => {
+    const product = item.productId;
+
+    if (!product) {
+      item.image = 'default-placeholder.png';
+      return;
+    }
+
+    const matchedVariant = product.variants.find(variant =>
+      variant.colorCode.toString() === item.colorCode.toString()
+    );
+
+    if (matchedVariant && matchedVariant.variantImages && matchedVariant.variantImages.length > 0) {
+      item.image = matchedVariant.variantImages[0];
+    } else {
+      item.image = 'default-product-image.png';
+    }
+    delete item.productId.variants;
+  });
+  return cart
 }
