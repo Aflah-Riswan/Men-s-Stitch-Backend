@@ -12,6 +12,7 @@ import reviewRoutes from './routes/reviewRoutes.js';
 import couponRoutes from './routes/couponRoutes.js'
 import addressRoutes from './routes/addressRoutes.js'
 import cartRoutes from './routes/cartRoutes.js'
+import orderRoutes  from './routes/orderRoutes.js'
 const app = express();
 const PORT = 3000;
 
@@ -42,6 +43,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/coupons',couponRoutes)
 app.use('/api/address',addressRoutes)
 app.use('/api/cart',cartRoutes)
+app.use('/api/orders',orderRoutes)
 
 app.all('*any', (req, res, next) => {
   res.status(404).json({
