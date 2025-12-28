@@ -4,9 +4,9 @@ import AppError from '../utils/appError.js';
 
 // --- IMPORTANT: Ensure models are registered ---
 // We import these files just to make sure Mongoose knows about them.
-import '../models/order.js'; 
+import '../models/order.js';
 import '../models/cart.js';
-import '../models/products.js'; 
+import '../models/products.js';
 import '../models/users.js';
 // import '../models/coupons.js'; // Uncomment if you have a coupons.js file
 
@@ -20,7 +20,7 @@ export const placeOrder = async (userId, addressId, paymentMethod) => {
   const Cart = getModel('Cart');
   const User = getModel('User');
   const Product = getModel('Products'); // Ensure this matches your model definition (Product vs Products)
-  
+
   // Optional: Only load Coupon if the model exists
   let Coupons;
   try { Coupons = getModel('Coupons'); } catch (e) { Coupons = null; }
@@ -89,7 +89,7 @@ export const placeOrder = async (userId, addressId, paymentMethod) => {
 
   // E. Create the Order
   const orderId = `ORD-${uuidv4().slice(0, 8).toUpperCase()}`;
-  
+
   const newOrder = new Order({
     user: userId,
     orderId: orderId,
@@ -106,7 +106,7 @@ export const placeOrder = async (userId, addressId, paymentMethod) => {
     payment: {
       method: paymentMethod,
       status: (paymentMethod === 'cod') ? 'pending' : 'paid',
-      transactionId: null 
+      transactionId: null
     },
     subtotal: cart.subTotal,
     discount: cart.discount,
@@ -143,37 +143,117 @@ export const getUserOrders = async (userId) => {
 export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
   const Order = getModel('Order');
   const order = await Order.findOne({ _id: orderId, user: userId });
-  
+
   if (!order) throw new AppError('Order not found', 404);
 
   // A. Cancel Specific Item (If itemId is provided)
   if (itemId) {
-      const item = order.items.id(itemId);
-      if (!item) throw new AppError('Item not found in this order', 404);
+    const item = order.items.id(itemId);
+    if (!item) throw new AppError('Item not found in this order', 404);
 
-      if (item.itemStatus === 'Cancelled') throw new AppError('Item is already cancelled', 400);
-      if (item.itemStatus === 'Delivered') throw new AppError('Cannot cancel a delivered item', 400);
+    if (item.itemStatus === 'Cancelled') throw new AppError('Item is already cancelled', 400);
+    if (item.itemStatus === 'Delivered') throw new AppError('Cannot cancel a delivered item', 400);
 
-      // Update the specific Item Status
-      item.itemStatus = 'Cancelled';
+    // Update the specific Item Status
+    item.itemStatus = 'Cancelled';
 
-      // Check if ALL items are now cancelled. If so, update the parent order status.
-      const allCancelled = order.items.every(i => i.itemStatus === 'Cancelled');
-      if (allCancelled) {
-          order.status = 'Cancelled';
-          order.cancellationReason = 'All items cancelled by user';
-      }
+    // Check if ALL items are now cancelled. If so, update the parent order status.
+    const allCancelled = order.items.every(i => i.itemStatus === 'Cancelled');
+    if (allCancelled) {
+      order.status = 'Cancelled';
+      order.cancellationReason = 'All items cancelled by user';
+    }
 
-      order.timeline.push({ 
-        status: allCancelled ? 'Cancelled' : 'Updated', 
-        comment: `Item (${item.name}) cancelled by user`, 
-        date: new Date() 
-      });
+    order.timeline.push({
+      status: allCancelled ? 'Cancelled' : 'Updated',
+      comment: `Item (${item.name}) cancelled by user`,
+      date: new Date()
+    });
 
-      // NOTE: If you need to refund to wallet, add logic here:
-      // if (order.payment.status === 'paid') { ...refund logic... }
-  } 
-  
-  
+    // NOTE: If you need to refund to wallet, add logic here:
+    // if (order.payment.status === 'paid') { ...refund logic... }
+  }
+
+
   return await order.save();
+};
+
+export const getOrderDetails = async (orderId) => {
+  const Order = getModel('Order');
+  const order = await Order.findById(orderId );
+
+  if (!order) {
+    throw new AppError('Order not found', 404);
+  }
+
+  return order;
+};
+
+export const getAllOrdersService = async (page, limit, status, search) => {
+  const query = {};
+  const Order = getModel('Order')
+
+  if (status && status !== 'All') {
+    query.status = status;
+  }
+
+  // B. Search Logic (Order ID OR Product Name)
+  if (search) {
+    query.$or = [
+      { orderId: { $regex: search, $options: 'i' } }, // Case insensitive ID
+      { "items.name": { $regex: search, $options: 'i' } } // Case insensitive Item Name
+    ];
+  }
+
+  const skip = (page - 1) * limit;
+
+  // C. Execute Query
+  const orders = await Order.find(query)
+    .populate('user', 'firstName email') // Optional: Get user info
+    .sort({ createdAt: -1 }) // Newest first
+    .skip(skip)
+    .limit(parseInt(limit));
+
+  console.log("Final Database Query:", JSON.stringify(query)); 
+  // D. Get Total Count (for Pagination)
+  const totalDocs = await Order.countDocuments(query);
+
+  return {
+    orders,
+    totalDocs,
+    totalPages: Math.ceil(totalDocs / limit),
+    currentPage: parseInt(page)
+  };
+};
+
+// --- 2. Fetch Dashboard Stats (Logic) ---
+export const getOrderStatsService = async () => {
+  const Order = getModel('Order')
+  const stats = await Order.aggregate([
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Calculate specific metrics
+  const totalOrders = stats.reduce((acc, curr) => acc + curr.count, 0);
+  const delivered = stats.find(s => s._id === 'Delivered')?.count || 0;
+  const cancelled = stats.find(s => s._id === 'Cancelled')?.count || 0;
+  const pending = stats.find(s => s._id === 'Pending')?.count || 0;
+
+  // Calculate "New Orders" (Created in last 7 days)
+  const last7Days = new Date();
+  last7Days.setDate(last7Days.getDate() - 7);
+  const newOrders = await Order.countDocuments({ createdAt: { $gte: last7Days } });
+
+  return {
+    totalOrders,
+    newOrders,
+    delivered,
+    cancelled,
+    pending
+  };
 };

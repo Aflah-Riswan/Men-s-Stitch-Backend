@@ -41,14 +41,54 @@ export const cancelOrder = async (req, res, next) => {
   try {
     const userId = req.user._id;
     const { orderId } = req.params;
-    const { reason ,  itemId} = req.body; 
+    const { reason, itemId } = req.body;
 
-    const order = await orderService.cancelOrder(userId, orderId, reason , itemId);
+    const order = await orderService.cancelOrder(userId, orderId, reason, itemId);
 
     res.status(200).json({
       success: true,
       message: 'Order cancelled successfully',
       order
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+export const getOrderDetails = async (req, res, next) => {
+  try {
+    const {orderId} = req.params
+    const order = await orderService.getOrderDetails(orderId)
+    res.status(200).json({
+      success: true,
+      order
+    });
+  } catch (error) {
+    next(error)
+  }
+}
+export const getAllOrders = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 10, status, search } = req.query;
+
+    const result = await orderService.getAllOrdersService(page, limit, status, search);
+
+    res.status(200).json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// --- Get Stats ---
+export const getOrderStats = async (req, res, next) => {
+  try {
+    const stats = await orderService.getOrderStatsService();
+
+    res.status(200).json({
+      success: true,
+      stats
     });
   } catch (error) {
     next(error);
