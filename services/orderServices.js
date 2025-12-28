@@ -8,6 +8,7 @@ import '../models/order.js';
 import '../models/cart.js';
 import '../models/products.js';
 import '../models/users.js';
+import Order from '../models/order.js';
 // import '../models/coupons.js'; // Uncomment if you have a coupons.js file
 
 // Helper to safely get models (Prevents Circular Dependency Errors)
@@ -257,3 +258,15 @@ export const getOrderStatsService = async () => {
     pending
   };
 };
+
+export const getOrderDetailsAdmin = async (orderId) =>{
+  const order = await Order.findById(orderId)
+  .populate('user' , 'firstName email phone')
+  .populate({
+    path : 'items.productId' ,
+    select : 'name image price '
+  })
+  console.log(order)
+  if(!order) throw new AppError('Order is not found ', 404 ,'ORDER_IS_NOT_FOUND')
+  return order
+}

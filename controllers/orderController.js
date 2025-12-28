@@ -94,3 +94,16 @@ export const getOrderStats = async (req, res, next) => {
     next(error);
   }
 };
+
+export const orderDetailsAdmin = async (req,res,next) => {
+  try {
+    const { orderId } = req.params
+    const order = await orderService.getOrderDetailsAdmin(orderId)
+    return res.json({
+      success : true,
+      order
+    })
+  } catch (error) {
+    next(error)
+  }
+}
