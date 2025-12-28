@@ -19,9 +19,7 @@ export const placeOrder = async (userId, addressId, paymentMethod) => {
   const Order = getModel('Order');
   const Cart = getModel('Cart');
   const User = getModel('User');
-  
-  // CHECK: If your product model is named 'Product' (singular), change 'Products' to 'Product' below
-  const Product = getModel('Products'); 
+  const Product = getModel('Products'); // Ensure this matches your model definition (Product vs Products)
   
   // Optional: Only load Coupon if the model exists
   let Coupons;
@@ -141,19 +139,41 @@ export const getUserOrders = async (userId) => {
   return await Order.find({ user: userId }).sort({ createdAt: -1 });
 };
 
-// --- 3. Cancel Order ---
-export const cancelOrder = async (userId, orderId, reason) => {
+// --- 3. Cancel Order (UPDATED: Supports Item-Level Cancellation) ---
+export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
   const Order = getModel('Order');
   const order = await Order.findOne({ _id: orderId, user: userId });
   
   if (!order) throw new AppError('Order not found', 404);
-  if (order.status !== 'Pending' && order.status !== 'Processing') {
-    throw new AppError('Cannot cancel this order at this stage', 400);
-  }
 
-  order.status = 'Cancelled';
-  order.cancellationReason = reason || 'User requested cancellation';
-  order.timeline.push({ status: 'Cancelled', comment: 'Cancelled by user', date: new Date() });
+  // A. Cancel Specific Item (If itemId is provided)
+  if (itemId) {
+      const item = order.items.id(itemId);
+      if (!item) throw new AppError('Item not found in this order', 404);
+
+      if (item.itemStatus === 'Cancelled') throw new AppError('Item is already cancelled', 400);
+      if (item.itemStatus === 'Delivered') throw new AppError('Cannot cancel a delivered item', 400);
+
+      // Update the specific Item Status
+      item.itemStatus = 'Cancelled';
+
+      // Check if ALL items are now cancelled. If so, update the parent order status.
+      const allCancelled = order.items.every(i => i.itemStatus === 'Cancelled');
+      if (allCancelled) {
+          order.status = 'Cancelled';
+          order.cancellationReason = 'All items cancelled by user';
+      }
+
+      order.timeline.push({ 
+        status: allCancelled ? 'Cancelled' : 'Updated', 
+        comment: `Item (${item.name}) cancelled by user`, 
+        date: new Date() 
+      });
+
+      // NOTE: If you need to refund to wallet, add logic here:
+      // if (order.payment.status === 'paid') { ...refund logic... }
+  } 
+  
   
   return await order.save();
 };

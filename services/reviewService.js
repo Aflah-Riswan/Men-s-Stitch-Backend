@@ -1,8 +1,12 @@
+import mongoose from 'mongoose';
 import Reviews from '../models/review.js';
+import AppError from '../utils/appError.js';
+
+const getModel = (name) => mongoose.model(name);
 
 export const getFeaturedReviewService = async () => {
   const reviews = await Reviews.aggregate([
-    { $match: { rating: 5, isApproved: true } }, 
+    { $match: { rating: 5, isApproved: true } },
     { $sample: { size: 3 } }
   ]);
   if (!reviews || reviews.length === 0) {
@@ -13,4 +17,87 @@ export const getFeaturedReviewService = async () => {
     success: true,
     reviews
   };
+};
+export const postReview = async (userId , productId , orderId ,rating , comment) => {
+  // 1. Lazy Load Models
+  const Order = getModel('Order');
+  const User = getModel('User');
+  const Review = getModel('Review');
+  const Product = getModel('Products'); // Matches your schema: mongoose.model('Products', ...)
+
+  // 2. Validate IDs
+  if (!mongoose.Types.ObjectId.isValid(orderId) || !mongoose.Types.ObjectId.isValid(productId)) {
+     throw new AppError('Invalid ID format', 400);
+  }
+
+  // 3. Fetch Order & User
+  const order = await Order.findById(orderId);
+  const user = await User.findById(userId);
+
+  if (!order) throw new AppError('Order not found', 404, 'ORDER_NOT_FOUND');
+  if (!user) throw new AppError('User not found', 404, 'USER_NOT_FOUND');
+
+  // 4. Find the Specific Item in the Order
+  // We use .find() because we are matching the 'productId' field, not the Item's '_id'
+  const purchasedItem = order.items.find(
+    (item) => item.productId.toString() === productId.toString()
+  );
+
+  if (!purchasedItem) {
+    throw new AppError('Product not found in this order', 404);
+  }
+
+  // 5. Verify Delivery Status
+  if (purchasedItem.itemStatus !== 'Delivered') {
+    throw new AppError('You can only review delivered items', 400);
+  }
+
+  // 6. Check for Duplicate Review
+  const existingReview = await Review.findOne({ user: userId, product: productId, orderId: orderId });
+  if (existingReview) {
+    throw new AppError('You have already reviewed this product', 400);
+  }
+
+  // 7. Create and Save the Review
+  const newReview = new Review({
+    product: productId,
+    user: userId,
+    orderId: orderId,
+    userName: user.firstName, // Assumes firstName exists on User model
+    rating: Number(rating),
+    comment: comment,
+    isVerifiedPurchase: true,
+    isApproved: true
+  });
+
+  await newReview.save();
+
+  // 8. Calculate New Average Rating
+  // This aggregation calculates the exact math for you
+  const stats = await Review.aggregate([
+    { $match: { product: new mongoose.Types.ObjectId(productId) } },
+    { 
+      $group: { 
+        _id: '$product', 
+        avgRating: { $avg: '$rating' }, 
+        nRating: { $sum: 1 } 
+      } 
+    }
+  ]);
+
+  // 9. Update the Product Schema
+  // We use dot notation 'rating.average' to target the nested field in your schema
+  if (stats.length > 0) {
+    await Product.findByIdAndUpdate(productId, {
+      'rating.average': stats[0].avgRating,
+      'rating.count': stats[0].nRating
+    });
+  } else {
+    await Product.findByIdAndUpdate(productId, {
+      'rating.average': 0,
+      'rating.count': 0
+    });
+  }
+
+  return newReview;
 };

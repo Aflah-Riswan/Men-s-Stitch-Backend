@@ -41,9 +41,9 @@ export const cancelOrder = async (req, res, next) => {
   try {
     const userId = req.user._id;
     const { orderId } = req.params;
-    const { reason } = req.body; // Optional reason from frontend
+    const { reason ,  itemId} = req.body; 
 
-    const order = await orderService.cancelOrder(userId, orderId, reason);
+    const order = await orderService.cancelOrder(userId, orderId, reason , itemId);
 
     res.status(200).json({
       success: true,
