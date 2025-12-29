@@ -8,7 +8,7 @@ const orderItemSchema = new mongoose.Schema({
   quantity: { type: Number, required: true },
   color: { type: String },
   size: { type: String },
-  itemStatus: { type: String, default: 'Ordered' } // Individual item status (e.g., Cancelled, Returned)
+  itemStatus: { type: String, default: 'Ordered' } 
 });
 
 const timelineSchema = new mongoose.Schema({
@@ -19,7 +19,7 @@ const timelineSchema = new mongoose.Schema({
 
 const orderSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  orderId: { type: String, unique: true, required: true }, // Unique ID like ORD_123456
+  orderId: { type: String, unique: true, required: true }, 
   
   items: [orderItemSchema],
   
@@ -39,17 +39,17 @@ const orderSchema = new mongoose.Schema({
     transactionId: { type: String, default: null }
   },
   
-  // Financials
+
   subtotal: { type: Number, required: true },
   discount: { type: Number, default: 0 },
   shippingFee: { type: Number, default: 0 },
   totalAmount: { type: Number, required: true },
   
-  // Coupon Info
+
   couponCode: { type: String, default: null },
   couponId: { type: mongoose.Schema.Types.ObjectId, ref: 'Coupons', default: null },
   
-  // Overall Status
+  
   status: { 
     type: String, 
     enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Returned'], 

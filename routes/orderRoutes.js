@@ -1,7 +1,7 @@
 
 import express from 'express';
 import { admin, protect } from '../middlewares/authMiddleware.js';
-import { cancelOrder, getAllOrders, getMyOrders, getOrderDetails, getOrderStats, orderDetailsAdmin, placeOrder } from '../controllers/orderController.js';
+import { cancelOrder, getAllOrders, getMyOrders, getOrderDetails, getOrderStats, orderDetailsAdmin, placeOrder, updateOrderStatus, updateOrderItemStatus } from '../controllers/orderController.js';
 
 const router = express.Router();
 
@@ -14,5 +14,6 @@ router.get('/admin/:orderId', protect, admin, orderDetailsAdmin)
 
 router.put('/:orderId/cancel', protect, cancelOrder);
 router.get('/:orderId', protect, getOrderDetails)
-
+router.put('/update-status/:orderId', protect, admin, updateOrderStatus);
+router.put('/update-item-status/:orderId', protect, admin, updateOrderItemStatus);
 export default router;

@@ -5,14 +5,11 @@ import AppError from "../utils/appError.js";
 
 const MAX_QTY_PER_ITEM = 5;
 
-// --- Helper: Recalculate Totals ---
 const recalculateCart = (cart) => {
   cart.subTotal = cart.items.reduce((acc, item) => acc + item.totalPrice, 0);
-  
-  // Shipping Rule: Free above 1000, else 50
+
   cart.shippingFee = cart.subTotal > 1000 ? 0 : 50; 
   
-  // Ensure discount doesn't exceed subtotal
   if (cart.discount > cart.subTotal) {
     cart.discount = cart.subTotal;
   }
@@ -21,7 +18,6 @@ const recalculateCart = (cart) => {
   return cart;
 };
 
-// --- 1. Get Cart Items (Reusable) ---
 export const getCartItems = async (userId) => {
   const cartDoc = await Cart.findOne({ user: userId })
     .populate({
@@ -31,7 +27,7 @@ export const getCartItems = async (userId) => {
 
   if (!cartDoc) return { items: [], subTotal: 0, grandTotal: 0, discount: 0 };
 
-  // Sync Prices
+  
   let cartModified = false;
   cartDoc.items.forEach(item => {
     const product = item.productId;

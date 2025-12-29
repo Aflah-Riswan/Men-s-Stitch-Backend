@@ -1,45 +1,36 @@
 import mongoose from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import AppError from '../utils/appError.js';
-
-// --- IMPORTANT: Ensure models are registered ---
-// We import these files just to make sure Mongoose knows about them.
 import '../models/order.js';
 import '../models/cart.js';
 import '../models/products.js';
 import '../models/users.js';
 import Order from '../models/order.js';
-// import '../models/coupons.js'; // Uncomment if you have a coupons.js file
-
-// Helper to safely get models (Prevents Circular Dependency Errors)
 const getModel = (name) => mongoose.model(name);
 
-// --- 1. Place Order ---
+
 export const placeOrder = async (userId, addressId, paymentMethod) => {
-  // We load models HERE, not at the top. This fixes the "Buffering Timeout".
   const Order = getModel('Order');
   const Cart = getModel('Cart');
   const User = getModel('User');
-  const Product = getModel('Products'); // Ensure this matches your model definition (Product vs Products)
-
-  // Optional: Only load Coupon if the model exists
+  const Product = getModel('Products'); 
   let Coupons;
   try { Coupons = getModel('Coupons'); } catch (e) { Coupons = null; }
 
-  // A. Fetch Cart
+
   const cart = await Cart.findOne({ user: userId }).populate('items.productId');
   if (!cart || cart.items.length === 0) {
     throw new AppError("Cart is empty", 400);
   }
 
-  // B. Fetch User & Address
+ 
   const user = await User.findById(userId);
   const selectedAddr = user.addresses.id(addressId);
   if (!selectedAddr) {
     throw new AppError("Delivery address not found", 404);
   }
 
-  // C. Wallet Payment Logic
+
   if (paymentMethod === 'wallet') {
     if (user.walletBalance < cart.grandTotal) {
       throw new AppError("Insufficient wallet balance", 400);
@@ -48,7 +39,7 @@ export const placeOrder = async (userId, addressId, paymentMethod) => {
     await user.save();
   }
 
-  // D. Build Order Items & Check Stock
+
   const orderItems = [];
 
   for (const item of cart.items) {
@@ -58,20 +49,20 @@ export const placeOrder = async (userId, addressId, paymentMethod) => {
     const variant = product.variants.id(item.variantId);
     if (!variant) throw new AppError(`Variant not found for ${product.productName}`, 404);
 
-    // Stock Check
+ 
     const currentStock = variant.stock[item.size] || 0;
     if (currentStock < item.quantity) {
       throw new AppError(`Out of stock: ${product.productName} (${item.size})`, 400);
     }
 
-    // Deduct Stock
+
     const stockPath = `variants.$.stock.${item.size}`;
     await Product.findOneAndUpdate(
       { _id: product._id, "variants._id": item.variantId },
       { $inc: { [stockPath]: -item.quantity } }
     );
 
-    // Resolve Image
+
     let itemImage = "https://placehold.co/150";
     if (variant.variantImages?.length > 0) itemImage = variant.variantImages[0];
     else if (product.coverImages?.length > 0) itemImage = product.coverImages[0];
@@ -88,7 +79,7 @@ export const placeOrder = async (userId, addressId, paymentMethod) => {
     });
   }
 
-  // E. Create the Order
+ 
   const orderId = `ORD-${uuidv4().slice(0, 8).toUpperCase()}`;
 
   const newOrder = new Order({
@@ -123,31 +114,28 @@ export const placeOrder = async (userId, addressId, paymentMethod) => {
 
   await newOrder.save();
 
-  // F. Update Coupon Usage
+
   if (cart.couponId && Coupons) {
     await Coupons.findByIdAndUpdate(cart.couponId, { $inc: { usedCount: 1 } });
   }
 
-  // G. Clear Cart
   await Cart.findOneAndDelete({ user: userId });
 
   return newOrder;
 };
 
-// --- 2. Get User Orders ---
 export const getUserOrders = async (userId) => {
   const Order = getModel('Order');
   return await Order.find({ user: userId }).sort({ createdAt: -1 });
 };
 
-// --- 3. Cancel Order (UPDATED: Supports Item-Level Cancellation) ---
 export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
   const Order = getModel('Order');
   const order = await Order.findOne({ _id: orderId, user: userId });
 
   if (!order) throw new AppError('Order not found', 404);
 
-  // A. Cancel Specific Item (If itemId is provided)
+
   if (itemId) {
     const item = order.items.id(itemId);
     if (!item) throw new AppError('Item not found in this order', 404);
@@ -155,10 +143,9 @@ export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
     if (item.itemStatus === 'Cancelled') throw new AppError('Item is already cancelled', 400);
     if (item.itemStatus === 'Delivered') throw new AppError('Cannot cancel a delivered item', 400);
 
-    // Update the specific Item Status
+    
     item.itemStatus = 'Cancelled';
 
-    // Check if ALL items are now cancelled. If so, update the parent order status.
     const allCancelled = order.items.every(i => i.itemStatus === 'Cancelled');
     if (allCancelled) {
       order.status = 'Cancelled';
@@ -171,8 +158,6 @@ export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
       date: new Date()
     });
 
-    // NOTE: If you need to refund to wallet, add logic here:
-    // if (order.payment.status === 'paid') { ...refund logic... }
   }
 
 
@@ -181,7 +166,7 @@ export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
 
 export const getOrderDetails = async (orderId) => {
   const Order = getModel('Order');
-  const order = await Order.findById(orderId );
+  const order = await Order.findById(orderId);
 
   if (!order) {
     throw new AppError('Order not found', 404);
@@ -198,25 +183,23 @@ export const getAllOrdersService = async (page, limit, status, search) => {
     query.status = status;
   }
 
-  // B. Search Logic (Order ID OR Product Name)
   if (search) {
     query.$or = [
-      { orderId: { $regex: search, $options: 'i' } }, // Case insensitive ID
-      { "items.name": { $regex: search, $options: 'i' } } // Case insensitive Item Name
+      { orderId: { $regex: search, $options: 'i' } },
+      { "items.name": { $regex: search, $options: 'i' } } 
     ];
   }
 
   const skip = (page - 1) * limit;
 
-  // C. Execute Query
+
   const orders = await Order.find(query)
-    .populate('user', 'firstName email') // Optional: Get user info
-    .sort({ createdAt: -1 }) // Newest first
+    .populate('user', 'firstName email') 
+    .sort({ createdAt: -1 }) 
     .skip(skip)
     .limit(parseInt(limit));
 
-  console.log("Final Database Query:", JSON.stringify(query)); 
-  // D. Get Total Count (for Pagination)
+  console.log("Final Database Query:", JSON.stringify(query));
   const totalDocs = await Order.countDocuments(query);
 
   return {
@@ -227,7 +210,7 @@ export const getAllOrdersService = async (page, limit, status, search) => {
   };
 };
 
-// --- 2. Fetch Dashboard Stats (Logic) ---
+
 export const getOrderStatsService = async () => {
   const Order = getModel('Order')
   const stats = await Order.aggregate([
@@ -239,13 +222,13 @@ export const getOrderStatsService = async () => {
     }
   ]);
 
-  // Calculate specific metrics
+ 
   const totalOrders = stats.reduce((acc, curr) => acc + curr.count, 0);
   const delivered = stats.find(s => s._id === 'Delivered')?.count || 0;
   const cancelled = stats.find(s => s._id === 'Cancelled')?.count || 0;
   const pending = stats.find(s => s._id === 'Pending')?.count || 0;
 
-  // Calculate "New Orders" (Created in last 7 days)
+
   const last7Days = new Date();
   last7Days.setDate(last7Days.getDate() - 7);
   const newOrders = await Order.countDocuments({ createdAt: { $gte: last7Days } });
@@ -259,14 +242,33 @@ export const getOrderStatsService = async () => {
   };
 };
 
-export const getOrderDetailsAdmin = async (orderId) =>{
+export const getOrderDetailsAdmin = async (orderId) => {
   const order = await Order.findById(orderId)
-  .populate('user' , 'firstName email phone')
-  .populate({
-    path : 'items.productId' ,
-    select : 'name image price '
-  })
+    .populate('user', 'firstName email phone')
+    .populate({
+      path: 'items.productId',
+      select: 'name image price '
+    })
   console.log(order)
-  if(!order) throw new AppError('Order is not found ', 404 ,'ORDER_IS_NOT_FOUND')
+  if (!order) throw new AppError('Order is not found ', 404, 'ORDER_IS_NOT_FOUND')
+  return order
+}
+
+export const updateOrderStatus = async (orderId, status) => {
+  const order = await Order.findByIdAndUpdate(
+    orderId,
+    { status: status },
+    { new: true } 
+  );
+  if (!order) throw new AppError('Order is not found', 404, 'ORDER_IS_NOT_FOUND')
+  return order
+}
+export const updateOrderItemStatus = async (orderId, itemId, status) => {
+  const order = await Order.findById(orderId)
+  if (!order) throw new AppError('Order is not found', 404, 'ORDER_IS_NOT_FOUND')
+  const item = order.items.id(itemId)
+  if (!item) throw new AppError('Ordered item is not found', 404, 'ORDERED_ITEM_IS_NOT_FOUND')
+  item.itemStatus = status
+  await order.save()
   return order
 }

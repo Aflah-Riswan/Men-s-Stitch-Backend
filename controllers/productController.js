@@ -5,7 +5,7 @@ export const createProduct = async (req, res, next) => {
   try {
     const data = req.body;
     const response = await productService.createProductService(data);
-    // Since service throws on failure, if we are here, it's a success
+   
     return res.status(201).json(response);
   } catch (error) {
     next(error);
