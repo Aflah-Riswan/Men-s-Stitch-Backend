@@ -1,10 +1,8 @@
 import * as cartService from '../services/cartService.js'
 
-// Add Item
 export const addToCart = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    // We ignore req.body.totalPrice and calculate in backend for security
     const updatedCart = await cartService.addToCart(userId, req.body);
     return res.status(200).json({ success: true, message: "Added to cart", cart: updatedCart });
   } catch (error) {
@@ -12,7 +10,7 @@ export const addToCart = async (req, res, next) => {
   }
 };
 
-// Get Cart
+
 export const getCartItems = async (req, res, next) => {
   try {
     const userId = req.user._id;
@@ -23,7 +21,7 @@ export const getCartItems = async (req, res, next) => {
   }
 };
 
-// Update Quantity
+
 export const updateQuantity = async (req, res, next) => {
   try {
     const userId = req.user._id;
@@ -35,7 +33,6 @@ export const updateQuantity = async (req, res, next) => {
   }
 };
 
-// Remove Item
 export const removeFromCart = async (req, res, next) => {
   try {
     const userId = req.user._id;
@@ -47,7 +44,7 @@ export const removeFromCart = async (req, res, next) => {
   }
 };
 
-// Apply Coupon
+
 export const applyCoupon = async (req, res, next) => {
   try {
     const userId = req.user._id;
@@ -62,7 +59,7 @@ export const applyCoupon = async (req, res, next) => {
   }
 };
 
-// Remove Coupon
+
 export const removeCoupon = async (req, res, next) => {
   try {
     const userId = req.user._id;
