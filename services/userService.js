@@ -1,7 +1,7 @@
 import User from '../models/users.js';
 import Users from '../models/users.js';
 import AppError from '../utils/appError.js';
-
+import bcrypt from 'bcrypt';
 export const getUserService = async (data) => {
   const {
     page = Number(data.page) || 1,
@@ -43,7 +43,7 @@ export const getUserService = async (data) => {
 
 export const blockUserService = async (userId) => {
   const user = await Users.findById(userId);
-  
+
   if (!user) {
     throw new AppError('User not found', 404, 'USER_NOT_FOUND');
   }
@@ -51,28 +51,28 @@ export const blockUserService = async (userId) => {
   user.isBlocked = !user.isBlocked;
   await user.save();
 
-  return { 
-    success: true, 
+  return {
+    success: true,
     message: `User ${user.isBlocked ? 'blocked' : 'unblocked'} successfully`,
-    isBlocked: user.isBlocked 
+    isBlocked: user.isBlocked
   };
 };
 
 export const analyticsService = async () => {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  
+
   const totalCustomers = await Users.countDocuments({ role: 'user' });
   const newCustomers = await Users.countDocuments({ role: 'user', createdAt: { $gte: sevenDaysAgo } });
   const blockedCustomers = await Users.countDocuments({ isBlocked: true });
-  
+
   const chartDataRaw = await Users.aggregate([
     {
       $match: {
         role: 'user',
         createdAt: { $gte: sevenDaysAgo }
       }
-    }, 
+    },
     {
       $group: {
         _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
@@ -83,7 +83,7 @@ export const analyticsService = async () => {
       $sort: { _id: 1 }
     }
   ]);
-  
+
   const chartData = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
@@ -97,7 +97,7 @@ export const analyticsService = async () => {
       fullDate: dateString
     });
   }
-  
+
   return {
     success: true,
     stats: {
@@ -108,10 +108,37 @@ export const analyticsService = async () => {
     chart: chartData
   };
 };
-export const getUserInfo = async (userId) =>{
-  console.log("id : ",userId)
+export const getUserInfo = async (userId) => {
+  console.log("id : ", userId)
   const user = await User.findById(userId)
-  if(!user) throw new AppError("User is not found ",404 ,"USER_IS_NOT_FOUND")
-    console.log("user : ",user)
+  if (!user) throw new AppError("User is not found ", 404, "USER_IS_NOT_FOUND")
+  console.log("user : ", user)
   return user
 }
+export const updateUserDetails = async (userId, data) => {
+  console.log(data)
+  const user = await User.findByIdAndUpdate(userId, { $set: data }, { new: true, runValidators: true })
+  if (!user) throw new AppError("User is not found ", 404, "USER_IS_NOT_FOUND")
+  return user
+}
+export const changePasswordService = async (userId, currentPassword, newPassword) => {
+
+  const user = await User.findById(userId).select('+password');
+  
+  if (!user) {
+    throw new AppError("User not found", 404, "USER_NOT_FOUND");
+  }
+
+  const isMatch = await bcrypt.compare(currentPassword, user.password);
+  if (!isMatch) {
+    throw new AppError("Incorrect current password", 400, "INVALID_PASSWORD");
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+  user.password = hashedPassword;
+  await user.save(); 
+
+  return user;
+};

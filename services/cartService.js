@@ -1,19 +1,20 @@
-import Cart from "../models/cart.js"; 
-import Product from "../models/products.js"; 
-import Coupons from "../models/coupons.js"; 
+import Cart from "../models/cart.js";
+import Product from "../models/products.js";
+import Coupons from "../models/coupons.js";
 import AppError from "../utils/appError.js";
+import WishList from "../models/wishlist.js";
 
 const MAX_QTY_PER_ITEM = 5;
 
 const recalculateCart = (cart) => {
   cart.subTotal = cart.items.reduce((acc, item) => acc + item.totalPrice, 0);
 
-  cart.shippingFee = cart.subTotal > 1000 ? 0 : 50; 
-  
+  cart.shippingFee = cart.subTotal > 1000 ? 0 : 50;
+
   if (cart.discount > cart.subTotal) {
     cart.discount = cart.subTotal;
   }
-  
+
   cart.grandTotal = Math.max(0, (cart.subTotal + cart.shippingFee) - (cart.discount || 0));
   return cart;
 };
@@ -27,7 +28,7 @@ export const getCartItems = async (userId) => {
 
   if (!cartDoc) return { items: [], subTotal: 0, grandTotal: 0, discount: 0 };
 
-  
+
   let cartModified = false;
   cartDoc.items.forEach(item => {
     const product = item.productId;
@@ -51,30 +52,30 @@ export const getCartItems = async (userId) => {
     if (!product || !product.isListed || product.isDeleted) {
       item.isUnavailable = true;
       item.statusMessage = "Product Unavailable";
-      item.image = null; 
-      return; 
+      item.image = null;
+      return;
     }
 
     const matchedVariant = product.variants.find(
-        v => v._id.toString() === item.variantId.toString()
+      v => v._id.toString() === item.variantId.toString()
     );
 
 
     if (matchedVariant && matchedVariant.variantImages?.length > 0) {
-        item.image = matchedVariant.variantImages[0];
+      item.image = matchedVariant.variantImages[0];
     } else if (product.coverImages?.length > 0) {
-        item.image = product.coverImages[0];
+      item.image = product.coverImages[0];
     } else {
-        item.image = null;
+      item.image = null;
     }
 
 
     if (matchedVariant) {
-        const currentStock = matchedVariant.stock[item.size] || 0;
-        if (currentStock < item.quantity) {
-             item.isUnavailable = true;
-             item.statusMessage = currentStock === 0 ? "Out of Stock" : `Only ${currentStock} left`;
-        }
+      const currentStock = matchedVariant.stock[item.size] || 0;
+      if (currentStock < item.quantity) {
+        item.isUnavailable = true;
+        item.statusMessage = currentStock === 0 ? "Out of Stock" : `Only ${currentStock} left`;
+      }
     }
 
     delete item.productId.variants;
@@ -103,7 +104,7 @@ export const addToCart = async (userId, cartData) => {
 
   const availableStock = variant.stock[size];
   if (availableStock === undefined) throw new AppError(`Size ${size} is not valid`, 400);
-  
+
   if (availableStock < qtyToAdd) {
     throw new AppError(`Out of stock! Only ${availableStock} left in size ${size}`, 400);
   }
@@ -113,12 +114,12 @@ export const addToCart = async (userId, cartData) => {
     cart = new Cart({ user: userId, items: [] });
   }
 
-  const itemIndex = cart.items.findIndex(item => 
-    item.variantId.toString() === variantId.toString() && 
+  const itemIndex = cart.items.findIndex(item =>
+    item.variantId.toString() === variantId.toString() &&
     item.size === size
   );
 
-  const price = product.salePrice; 
+  const price = product.salePrice;
 
   if (itemIndex > -1) {
     const newQty = cart.items[itemIndex].quantity + qtyToAdd;
@@ -135,6 +136,15 @@ export const addToCart = async (userId, cartData) => {
 
   recalculateCart(cart);
   await cart.save();
+
+  await WishList.findOneAndUpdate(
+    { user: userId },
+    {
+      $pull: {
+        products: { productId: productId }
+      }
+    }
+  );
   return await getCartItems(userId);
 };
 
@@ -159,10 +169,10 @@ export const updateQuantity = async (userId, itemId, action) => {
   }
 
   item.totalPrice = item.quantity * item.price;
-  
+
   recalculateCart(cart);
   await cart.save();
-  return await getCartItems(userId); 
+  return await getCartItems(userId);
 };
 
 
@@ -171,20 +181,20 @@ export const removeItem = async (userId, itemId) => {
   if (!cart) throw new AppError('Cart not found', 404);
 
   cart.items = cart.items.filter(item => item._id.toString() !== itemId.toString());
-  
+
   recalculateCart(cart);
   await cart.save();
-  return await getCartItems(userId); 
+  return await getCartItems(userId);
 };
 
 
 export const applyCoupon = async (userId, couponCode) => {
   const cart = await Cart.findOne({ user: userId });
   if (!cart) throw new AppError('Cart not found', 404);
-  
+
   const coupon = await Coupons.findOne({ couponCode: couponCode.toUpperCase(), isDeleted: false });
-  
-  if (!coupon) throw new AppError('Invalid Coupon Code', 400); 
+
+  if (!coupon) throw new AppError('Invalid Coupon Code', 400);
 
   if (!coupon.isActive) throw new AppError('This coupon is inactive', 400);
   if (new Date(coupon.expiryDate) < new Date()) throw new AppError('This coupon has expired', 400);
@@ -203,11 +213,11 @@ export const applyCoupon = async (userId, couponCode) => {
 
   cart.couponCode = coupon.couponCode;
   cart.couponId = coupon._id;
-  cart.discount = Math.round(discountAmount); 
+  cart.discount = Math.round(discountAmount);
 
   recalculateCart(cart);
   await cart.save();
-  return await getCartItems(userId); 
+  return await getCartItems(userId);
 };
 
 
@@ -221,5 +231,5 @@ export const removeCoupon = async (userId) => {
 
   recalculateCart(cart);
   await cart.save();
-  return await getCartItems(userId); 
+  return await getCartItems(userId);
 };
