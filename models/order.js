@@ -8,6 +8,8 @@ const orderItemSchema = new mongoose.Schema({
   quantity: { type: Number, required: true },
   color: { type: String },
   size: { type: String },
+  // UPDATED: Added returnReason field
+  returnReason: { type: String, default: null },
   itemStatus: { type: String, default: 'Ordered' } 
 });
 
@@ -52,7 +54,8 @@ const orderSchema = new mongoose.Schema({
   
   status: { 
     type: String, 
-    enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Returned'], 
+    // UPDATED: Added 'Return Requested' to enum just in case
+    enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Returned', 'Return Requested'], 
     default: 'Pending' 
   },
   cancellationReason: { type: String, default: null },

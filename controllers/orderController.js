@@ -1,4 +1,3 @@
-
 import * as orderService from '../services/orderServices.js';
 
 export const placeOrder = async (req, res, next) => {
@@ -22,6 +21,7 @@ export const placeOrder = async (req, res, next) => {
     next(error);
   }
 };
+
 export const getMyOrders = async (req, res, next) => {
   try {
     const userId = req.user._id;
@@ -35,7 +35,6 @@ export const getMyOrders = async (req, res, next) => {
     next(error);
   }
 };
-
 
 export const cancelOrder = async (req, res, next) => {
   try {
@@ -54,6 +53,7 @@ export const cancelOrder = async (req, res, next) => {
     next(error);
   }
 };
+
 export const getOrderDetails = async (req, res, next) => {
   try {
     const { orderId } = req.params
@@ -66,6 +66,8 @@ export const getOrderDetails = async (req, res, next) => {
     next(error)
   }
 }
+
+
 export const getAllOrders = async (req, res, next) => {
   try {
     const { page = 1, limit = 10, status, search } = req.query;
@@ -81,7 +83,6 @@ export const getAllOrders = async (req, res, next) => {
   }
 };
 
-
 export const getOrderStats = async (req, res, next) => {
   try {
     const stats = await orderService.getOrderStatsService();
@@ -94,6 +95,7 @@ export const getOrderStats = async (req, res, next) => {
     next(error);
   }
 };
+
 
 export const orderDetailsAdmin = async (req, res, next) => {
   try {
@@ -108,23 +110,45 @@ export const orderDetailsAdmin = async (req, res, next) => {
   }
 }
 
+
 export const updateOrderStatus = async (req, res, next) => {
   try {
     const { orderId } = req.params
     const { status } = req.body
     const order = await orderService.updateOrderStatus(orderId, status)
-    return res.json({ success: true, message: ' updated succesfully', order })
+    return res.json({ success: true, message: 'Status updated succesfully', order })
   } catch (error) {
     next(error)
   }
 }
+
+
 export const updateOrderItemStatus = async (req, res, next) => {
   try {
     const { orderId } = req.params
     const { itemId, status } = req.body
     const order = await orderService.updateOrderItemStatus(orderId, itemId, status)
-    return res.json({ success: true, message: ' updated succesfully', order })
+    return res.json({ success: true, message: 'Item status updated succesfully', order })
   } catch (error) {
     next(error)
   }
 }
+
+
+export const returnOrderItem = async (req, res, next) => {
+  try {
+    const { orderId, itemId } = req.params;
+    const { reason } = req.body;
+    const userId = req.user._id;
+
+    const updatedOrder = await orderService.returnOrder(userId, orderId, itemId, reason);
+
+    res.status(200).json({
+      success: true,
+      message: 'Return request submitted successfully',
+      order: updatedOrder
+    });
+  } catch (error) {
+    next(error);
+  }
+};
