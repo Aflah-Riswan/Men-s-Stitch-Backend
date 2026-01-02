@@ -87,9 +87,11 @@ export const getCartItems = async (userId) => {
 
 export const addToCart = async (userId, cartData) => {
   const { productId, variantId, size, quantity, colorCode } = cartData;
+  
   const qtyToAdd = Number(quantity);
 
   const product = await Product.findById(productId).populate('mainCategory');
+  
   if (!product) throw new AppError('Product not found', 404);
 
   if (!product.isListed || product.isDeleted) {

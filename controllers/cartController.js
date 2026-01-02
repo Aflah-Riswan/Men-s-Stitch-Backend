@@ -3,6 +3,7 @@ import * as cartService from '../services/cartService.js'
 export const addToCart = async (req, res, next) => {
   try {
     const userId = req.user._id;
+    console.log("data : ",req.body)
     const updatedCart = await cartService.addToCart(userId, req.body);
     return res.status(200).json({ success: true, message: "Added to cart", cart: updatedCart });
   } catch (error) {

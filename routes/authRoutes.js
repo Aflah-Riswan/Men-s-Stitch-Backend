@@ -5,7 +5,8 @@ import {
   createUser, 
   forgotPassword, 
   verifyOtp, 
-  resetPassword 
+  resetPassword, 
+  googleLogin
 } from '../controllers/authController.js';
 
 const router = express.Router();
@@ -16,5 +17,5 @@ router.post('/refresh-token', refreshAccessToken);
 router.post('/forgot-password', forgotPassword);
 router.post('/verify-otp', verifyOtp);
 router.patch('/reset-password', resetPassword);
-
+router.post('/google/login',googleLogin)
 export default router;

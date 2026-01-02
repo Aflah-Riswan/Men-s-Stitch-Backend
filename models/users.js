@@ -19,8 +19,8 @@ const userSchema = new mongoose.Schema({
   lastName: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true, lowerCase: true, trim: true, },
   profilePic: { type: String, default: "" },
-  phone: { type: String, required: true, trim: true },
-  password: { type: String, required: true, },
+  phone: { type: String, required: false, trim: true , default: null },
+  password: { type: String, required: false, default:null },
   walletBalance: { type: Number, default: 0 },
   isPhoneVerified: { type: Boolean, default: false },
   isBlocked: { type: Boolean, default: false },
@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema({
     default: []
   },
   refreshToken: { type: String, default: null },
-
+  googleId: { type: String },
 },
   { timestamps: true });
 

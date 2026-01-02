@@ -82,3 +82,13 @@ export const resetPassword = async (req, res,next) => {
     next(error)
   }
 };
+
+export const googleLogin  = async  (req,res, next) =>{
+  try {
+    const { token } = req.body
+    const response = await authService.googleLogin(token)
+    return res.json(response)
+  } catch (error) {
+    next(error)
+  }
+}
