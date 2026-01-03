@@ -2,13 +2,13 @@ import mongoose from 'mongoose';
 
 const orderItemSchema = new mongoose.Schema({
   productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Products', required: true },
+  variantId: { type: mongoose.Schema.Types.ObjectId, required: true },
   name: { type: String, required: true },
   image: { type: String, required: true },
   price: { type: Number, required: true },
   quantity: { type: Number, required: true },
   color: { type: String },
   size: { type: String },
-  // UPDATED: Added returnReason field
   returnReason: { type: String, default: null },
   itemStatus: { type: String, default: 'Ordered' } 
 });

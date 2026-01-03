@@ -6,6 +6,7 @@ import '../models/cart.js';
 import '../models/products.js';
 import '../models/users.js';
 import Order from '../models/order.js';
+import Products from '../models/products.js';
 const getModel = (name) => mongoose.model(name);
 
 // --- PLACE ORDER ---
@@ -68,7 +69,8 @@ export const placeOrder = async (userId, addressId, paymentMethod) => {
       quantity: item.quantity,
       color: variant.productColor,
       size: item.size,
-      itemStatus: 'Ordered'
+      itemStatus: 'Ordered',
+      variantId : item.variantId
     });
   }
  
@@ -122,18 +124,35 @@ export const getUserOrders = async (userId) => {
 
 export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
   const Order = getModel('Order');
+  const Products = getModel('Products');
   const order = await Order.findOne({ _id: orderId, user: userId });
 
   if (!order) throw new AppError('Order not found', 404);
 
   if (itemId) {
     const item = order.items.id(itemId);
+    console.log(" items : ", item)
     if (!item) throw new AppError('Item not found in this order', 404);
 
     if (item.itemStatus === 'Cancelled') throw new AppError('Item is already cancelled', 400);
     if (item.itemStatus === 'Delivered') throw new AppError('Cannot cancel a delivered item', 400);
     
     item.itemStatus = 'Cancelled';
+
+    const product = await Products.findById(item.productId)
+    if(product){
+      console.log("start of prodct ",product)
+      const variant = product.variants.id(item.variantId)
+      console.log(" variant : ",variant)
+      console.log("start of prodct condotion asin")
+      const currentStock = variant.stock[item.size] || 0
+     
+      variant.stock[item.size] = currentStock + item.quantity
+    
+      product.markModified('variants')
+      
+      await product.save()
+    }
 
     const allCancelled = order.items.every(i => i.itemStatus === 'Cancelled');
     if (allCancelled) {
