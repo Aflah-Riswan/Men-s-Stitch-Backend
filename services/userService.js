@@ -124,7 +124,7 @@ export const updateUserDetails = async (userId, data) => {
 export const changePasswordService = async (userId, currentPassword, newPassword) => {
 
   const user = await User.findById(userId).select('+password');
-  
+
   if (!user) {
     throw new AppError("User not found", 404, "USER_NOT_FOUND");
   }
@@ -138,7 +138,16 @@ export const changePasswordService = async (userId, currentPassword, newPassword
   const hashedPassword = await bcrypt.hash(newPassword, salt);
 
   user.password = hashedPassword;
-  await user.save(); 
+  await user.save();
 
   return user;
 };
+
+export const updatePhoneNumber = async (userId, phone) => {
+  const user = await User.findById(userId )
+  if (!user) throw new AppError('User is not found', 404, 'USER_IS_NOT_FOUND')
+  user.phone = phone
+  user.isPhoneVerified = true
+  await user.save()
+  return { success: true , message :' updated phone number', phone:user.phone , isPhoneVerified : user.isPhoneVerified }
+}

@@ -6,6 +6,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import AppError from '../utils/appError.js';
 import { OAuth2Client } from 'google-auth-library';
+import Cart from '../models/cart.js';
 
 const genearteAccessToken = (user) => {
   return jwt.sign({ id: user._id, role: user.role }, process.env.ACCESS_TOKEN_KEY, { expiresIn: '1d' });
@@ -39,7 +40,7 @@ export const loginService = async (userData) => {
   const refreshToken = generateRefreshToken(user);
 
   const updated = await User.findByIdAndUpdate(user._id, { refreshToken: refreshToken });
-  
+
   return { success: true, message: " Welcome to dashboard ", accessToken, refreshToken, role: user.role };
 
 
@@ -65,7 +66,7 @@ export const createUserService = async (data) => {
 
   const { firstName, lastName, phone, email, password } = value;
   const isExisted = await User.findOne({ email });
- 
+
   if (isExisted) throw new AppError('User already exists with this email ', 409, ' USER_ALREADY_EXIST')
 
   const salt = await bcrypt.genSalt(10);
@@ -175,6 +176,14 @@ export const googleLogin = async (token) => {
         googleId: sub,
         password: null,
       })
+
+      await Cart.create({
+        user: user._id,
+        items: [],
+        totalPrice: 0,
+        grandTotal: 0
+      });
+      
     } else {
 
       if (!user.googleId) {
@@ -198,7 +207,7 @@ export const googleLogin = async (token) => {
 
     }
   } catch (error) {
-    console.log("error found in : ",error)
+    console.log("error found in : ", error)
     throw new AppError('Google authentication failed', 400, 'GOOGLE_AUTH_FAILED');
   }
 }

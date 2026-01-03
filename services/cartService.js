@@ -3,6 +3,7 @@ import Product from "../models/products.js";
 import Coupons from "../models/coupons.js";
 import AppError from "../utils/appError.js";
 import WishList from "../models/wishlist.js";
+import User from "../models/users.js";
 
 const MAX_QTY_PER_ITEM = 5;
 
@@ -20,13 +21,19 @@ const recalculateCart = (cart) => {
 };
 
 export const getCartItems = async (userId) => {
+  console.log(userId)
   const cartDoc = await Cart.findOne({ user: userId })
     .populate({
       path: 'items.productId',
       select: 'productName variants salePrice isListed isDeleted coverImages'
-    });
+    })
+    .populate({
+      path:'user',
+      select : 'email , phone , isPhoneVerified'
+    })
+    ;
 
-  if (!cartDoc) return { items: [], subTotal: 0, grandTotal: 0, discount: 0 };
+    if (!cartDoc) return { items: [], subTotal: 0, grandTotal: 0, discount: 0 };
 
 
   let cartModified = false;
@@ -55,8 +62,8 @@ export const getCartItems = async (userId) => {
       item.image = null;
       return;
     }
-
-    const matchedVariant = product.variants.find(
+     const variants = product.variants || []
+    const matchedVariant = variants.find(
       v => v._id.toString() === item.variantId.toString()
     );
 

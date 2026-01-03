@@ -68,12 +68,23 @@ export const updateUserDetails = async (req, res, next) => {
     next(error)
   }
 }
-export const changeUserPassword = async (req,res,next) =>{
+export const changeUserPassword = async (req, res, next) => {
   try {
     const userId = req.user._id
-    const { currentPassword , newPassword } = req.body
-    const response = await userService.changePasswordService(userId ,currentPassword , newPassword )
-    return res.json({ success: true , message : ' updated succesfully'})
+    const { currentPassword, newPassword } = req.body
+    const response = await userService.changePasswordService(userId, currentPassword, newPassword)
+    return res.json({ success: true, message: ' updated succesfully' })
+  } catch (error) {
+    next(error)
+  }
+}
+export const updatePhoneNumber = async (req, res, next) => {
+  try {
+    const userId = req.user._id
+    const { phone } = req.body
+    console.log("user : ")
+    const response = await userService.updatePhoneNumber(userId, phone)
+    return res.json(response)
   } catch (error) {
     next(error)
   }

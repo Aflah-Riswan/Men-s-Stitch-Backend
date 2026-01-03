@@ -11,7 +11,7 @@ const itemsSchema = new mongoose.Schema({
 });
 
 const cartSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true, unique: true },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
   items: [itemsSchema], 
   couponId: { type: mongoose.Schema.Types.ObjectId, ref: 'Coupons', default: null },
   couponCode: { type: String, default: null }, 
