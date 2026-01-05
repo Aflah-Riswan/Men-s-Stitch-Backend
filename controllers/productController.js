@@ -1,6 +1,7 @@
 import Products from '../models/products.js';
 import * as productService from '../services/productService.js';
 
+
 export const createProduct = async (req, res, next) => {
   try {
     const data = req.body;
@@ -126,3 +127,4 @@ export const getProductsByCategory = async (req, res, next) => {
     next(error);
   }
 };
+

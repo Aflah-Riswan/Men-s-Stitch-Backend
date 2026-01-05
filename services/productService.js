@@ -1,13 +1,20 @@
 import Products from '../models/products.js';
 import Category from '../models/category.js';
 import AppError from '../utils/appError.js';
+import { calculateBestPrice } from '../utils/calculateBestPrice.js';
 
 export const createProductService = async (data) => {
   if (!data || Object.keys(data).length === 0) {
     throw new AppError('Product data is empty', 400, 'EMPTY_DATA');
   }
-
-  const product = new Products(data);
+  const { originalPrice, salePrice, productOffer, mainCategory } = data
+  const priceDetails = await calculateBestPrice(originalPrice, salePrice, productOffer, mainCategory)
+  const finalData = {
+    ...data,
+    salePrice: priceDetails.salePrice,
+    activeOfferSource: priceDetails.activeOfferSource
+  }
+  const product = new Products(finalData);
   const savedProduct = await product.save();
 
   return {
@@ -91,9 +98,17 @@ export const productToggleIsList = async (id) => {
 };
 
 export const updateProductService = async (id, data) => {
+  const { originalPrice, salePrice, productOffer, mainCategory } = data
+  
+  const priceDetails = await calculateBestPrice(originalPrice, salePrice, productOffer, mainCategory)
+  const finalData = {
+    ...data,
+    salePrice: priceDetails.salePrice,
+    activeOfferSource: priceDetails.activeOfferSource
+  }
   const updatedProduct = await Products.findByIdAndUpdate(
     { _id: id },
-    { $set: data },
+    { $set: finalData },
     { new: true }
   );
 
@@ -214,7 +229,7 @@ export const getProductsByCategoryService = async (slug, queryParams) => {
       const rawValues = dynamicFilters[key].split(',');
       const regexValues = rawValues
         .map(v => v.trim())
-        .filter(Boolean)  
+        .filter(Boolean)
         .map(v => {
           const escaped = v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           return new RegExp(`^${escaped}$`, 'i');

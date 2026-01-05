@@ -12,6 +12,13 @@ export const validateProduct = (req, res, next) => {
 
     salePrice: joi.number().min(1).required().less(joi.ref('originalPrice')).messages({ 'number.base': 'sale price should be a number', 'number.min': 'sales should be greater than 0', 'any.required': 'sale price is required', 'number.less': 'Sale Price must be less than Original Price' }),
 
+    productOffer: joi.number().min(0).max(100).required().messages({
+      'number.base': 'Offer must be a number',
+      'number.min': 'Offer cannot be less than 0%',
+      'number.max': 'Offer cannot be more than 100%',
+      'any.required': 'Offer percentage is required'
+    }),
+
     mainCategory: joi.string().hex().length(24).required().messages({ 'any.required': 'main category is required', 'string.base': 'invalid category selection', 'string.hex': 'invalid category selection ', 'string.length': 'invalid category selction' }),
 
     subCategory: joi.string().hex().length(24).optional().allow(null, '').required().messages({ 'string.base': 'invalid subcategory ', 'string.hex': 'invalid sub category' }),

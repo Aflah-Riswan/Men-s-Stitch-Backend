@@ -27,6 +27,7 @@ const productSchema = new mongoose.Schema({
   coverImages: { type: [String], required: true },
   originalPrice: { type: Number, required: true },
   salePrice: { type: Number, required: true },
+  productOffer: { type: Number, required: true, default: 0 },
   mainCategory: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
   subCategory: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null },
   variants: [variantsSchema],
@@ -42,8 +43,10 @@ const productSchema = new mongoose.Schema({
   },
   isListed: { type: Boolean, default: true },
   isDeleted: { type: Boolean, default: false },
-  deletedAt: { type: Date, default: null }
+  deletedAt: { type: Date, default: null },
+  activeOfferSource: { type: String, enum: ['product', 'category', 'none'], default: 'product' },
 },
+
   { timestamps: true }
 );
 
@@ -54,13 +57,13 @@ productSchema.virtual('reviews', {
 });
 
 productSchema.index({
-  productName : 'text',
-  productDescription : 'text',
+  productName: 'text',
+  productDescription: 'text',
   "attributes.$**": "text",
-  tags:'text'
-},{
- weights : { productName : 10 , productDescription : 5 , "attributes.$**": 3,  tags : 2}
-} )
+  tags: 'text'
+}, {
+  weights: { productName: 10, productDescription: 5, "attributes.$**": 3, tags: 2 }
+})
 
 productSchema.set('toObject', { virtuals: true });
 productSchema.set('toJSON', { virtuals: true });

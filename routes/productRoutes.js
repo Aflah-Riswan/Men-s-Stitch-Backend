@@ -9,7 +9,8 @@ import {
   deleteProduct, 
   getProductsHome, 
   getProductByIdHome, 
-  getProductsByCategory 
+  getProductsByCategory, 
+ 
 } from '../controllers/productController.js';
 import { protect, admin } from '../middlewares/authMiddleware.js';
 
@@ -24,5 +25,6 @@ router.put('/:id/edit', protect, admin, updateProduct);
 router.patch('/:id/delete', protect, admin, deleteProduct);
 router.get('/:id/details', getProductByIdHome);
 router.get('/category/:slug', getProductsByCategory);
+
 
 export default router;

@@ -3,25 +3,45 @@ import joi from 'joi';
 export const validateCategory = (req, res, next) => {
 
   const schema = joi.object({
-    categoryName: joi.string().min(3).required().messages({ 'string.empty': 'Category name is required', 'string.min': 'Category name must be greater than 3 characters' }),
-    categoryOffer: joi.number().min(1).max(100).required().messages({
-      'number.max': 'Offer percentage should be less than 100',
-      'number.base': 'percentage should be a number'
+    categoryName: joi.string().min(3).required().messages({ 
+        'string.empty': 'Category name is required', 
+        'string.min': 'Category name must be greater than 3 characters' 
     }),
-    maxRedeemable: joi.number().min(1).required().messages({
-      'number.min': 'maxRedeemable cannt be a negative',
-    }),
-    image: joi.string().uri().required().messages({
-      'string.empty': 'Image URL is required',
-      'string.uri': 'Image must be a valid URL link (http/https)'
-    }),
+
     discountType: joi.string().valid('Flat', 'Percentage').required(),
 
+    // 1. CONDITIONAL CATEGORY OFFER
+    categoryOffer: joi.number().min(0).required()
+      .when('discountType', {
+        is: 'Percentage',
+        then: joi.number().max(100).messages({ 'number.max': 'Percentage discount cannot exceed 100%' }),
+        otherwise: joi.number() // No max limit for Flat amount
+      })
+      .messages({
+        'number.base': 'Offer must be a number',
+        'number.min': 'Offer cannot be negative'
+      }),
+
+    // 2. CONDITIONAL MAX REDEEMABLE
+    maxRedeemable: joi.number()
+      .when('discountType', {
+        is: 'Flat',
+        then: joi.allow(null).optional(), // Allow null for Flat
+        otherwise: joi.number().min(1).required().messages({ 
+            'any.required': 'Max redeemable limit is required for Percentage offers' 
+        })
+      }),
+
+    image: joi.string().required().messages({
+      'string.empty': 'Image URL is required'
+    }),
+
     parentCategory: joi.alternatives().try(
-      joi.string().hex().length(24),
-      joi.string().valid('none', ''),
+      joi.string().hex().length(24), // Valid ObjectId
+      joi.string().valid('none', 'None', ''), // Handle frontend strings
       joi.allow(null)
     ).optional(),
+
     isListed: joi.boolean(),
     isFeatured: joi.boolean()
   }).unknown(true);

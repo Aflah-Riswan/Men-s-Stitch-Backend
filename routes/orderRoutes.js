@@ -17,17 +17,15 @@ const router = express.Router();
 
 router.post('/place-order', protect, placeOrder);
 router.get('/my-orders', protect, getMyOrders);
-router.put('/:orderId/cancel', protect, cancelOrder);
-router.get('/:orderId', protect, getOrderDetails);
-
-router.put('/:orderId/items/:itemId/return', protect, returnOrderItem);
 
 router.get('/', protect, admin, getAllOrders);
 router.get('/stats', protect, admin, getOrderStats);
+
+router.put('/:orderId/items/:itemId/return', protect, returnOrderItem);
+router.put('/:orderId/cancel', protect, cancelOrder);
 router.get('/admin/:orderId', protect, admin, orderDetailsAdmin);
-
+router.get('/:orderId', protect, getOrderDetails);
 router.put('/update-status/:orderId', protect, admin, updateOrderStatus);
-
 router.put('/update-item-status/:orderId', protect, admin, updateOrderItemStatus);
 
 export default router;

@@ -8,7 +8,7 @@ const categorySchema = new mongoose.Schema({
   parentCategory: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null },
   categoryOffer: { type: Number, required: true, default: 0 },
   discountType: { type: String, required: true },
-  maxRedeemable: { type: Number, required: true },
+  maxRedeemable: { type: Number, default:null },
   isListed: { type: Boolean, required: true, default: true },
   isFeatured: { type: Boolean, required: true, default: true },
   isDeleted: { type: Boolean, default: false },
