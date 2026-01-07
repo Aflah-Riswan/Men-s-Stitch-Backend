@@ -7,6 +7,7 @@ import '../models/products.js';
 import '../models/users.js';
 import Order from '../models/order.js';
 import Products from '../models/products.js';
+import Transaction from '../models/transactions.js';
 const getModel = (name) => mongoose.model(name);
 
 // --- PLACE ORDER ---
@@ -108,6 +109,19 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
   });
 
   await newOrder.save();
+
+  const newTransaction = new Transaction({
+    user: userId,
+    order: newOrder._id,
+    paymentId : transactionId,
+    amount : newOrder.totalAmount,
+    transactionType : 'Debit',
+    status : 'Success',
+    method : paymentMethod,
+    description : `payment for ${newOrder._id}`
+  })
+
+  await newTransaction.save()
 
   if (cart.couponId && Coupons) {
     await Coupons.findByIdAndUpdate(cart.couponId, { $inc: { usedCount: 1 } });

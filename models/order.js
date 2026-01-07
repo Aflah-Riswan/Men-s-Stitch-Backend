@@ -54,7 +54,7 @@ const orderSchema = new mongoose.Schema({
   
   status: { 
     type: String, 
-    // UPDATED: Added 'Return Requested' to enum just in case
+
     enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Returned', 'Return Requested'], 
     default: 'Pending' 
   },
