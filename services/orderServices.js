@@ -10,11 +10,11 @@ import Products from '../models/products.js';
 const getModel = (name) => mongoose.model(name);
 
 // --- PLACE ORDER ---
-export const placeOrder = async (userId, addressId, paymentMethod) => {
+export const placeOrder = async (userId, addressId, paymentMethod, transactionId = null) => {
   const Order = getModel('Order');
   const Cart = getModel('Cart');
   const User = getModel('User');
-  const Product = getModel('Products'); 
+  const Product = getModel('Products');
   let Coupons;
   try { Coupons = getModel('Coupons'); } catch (e) { Coupons = null; }
 
@@ -22,7 +22,7 @@ export const placeOrder = async (userId, addressId, paymentMethod) => {
   if (!cart || cart.items.length === 0) {
     throw new AppError("Cart is empty", 400);
   }
- 
+
   const user = await User.findById(userId);
   const selectedAddr = user.addresses.id(addressId);
   if (!selectedAddr) {
@@ -45,7 +45,7 @@ export const placeOrder = async (userId, addressId, paymentMethod) => {
 
     const variant = product.variants.id(item.variantId);
     if (!variant) throw new AppError(`Variant not found for ${product.productName}`, 404);
- 
+
     const currentStock = variant.stock[item.size] || 0;
     if (currentStock < item.quantity) {
       throw new AppError(`Out of stock: ${product.productName} (${item.size})`, 400);
@@ -70,11 +70,12 @@ export const placeOrder = async (userId, addressId, paymentMethod) => {
       color: variant.productColor,
       size: item.size,
       itemStatus: 'Ordered',
-      variantId : item.variantId
+      variantId: item.variantId
     });
   }
- 
+
   const orderId = `ORD-${uuidv4().slice(0, 8).toUpperCase()}`;
+  const isPaid = paymentMethod === 'wallet' || transactionId;
 
   const newOrder = new Order({
     user: userId,
@@ -91,8 +92,8 @@ export const placeOrder = async (userId, addressId, paymentMethod) => {
     },
     payment: {
       method: paymentMethod,
-      status: (paymentMethod === 'cod') ? 'pending' : 'paid',
-      transactionId: null
+      status: isPaid ? 'paid' : 'pending',
+      transactionId: transactionId
     },
     subtotal: cart.subTotal,
     discount: cart.discount,
@@ -100,9 +101,9 @@ export const placeOrder = async (userId, addressId, paymentMethod) => {
     totalAmount: cart.grandTotal,
     couponCode: cart.couponCode,
     couponId: cart.couponId,
-    status: 'Pending',
+    status: isPaid ? 'Processing' : 'Pending',
     timeline: [
-      { status: 'Pending', comment: 'Order placed successfully' }
+      { status: isPaid ? 'Processing' : 'Pending', comment: isPaid ? `Order placed. Payment ID: ${transactionId || 'Wallet'}` : 'Order placed successfully' }
     ]
   });
 
@@ -136,21 +137,21 @@ export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
 
     if (item.itemStatus === 'Cancelled') throw new AppError('Item is already cancelled', 400);
     if (item.itemStatus === 'Delivered') throw new AppError('Cannot cancel a delivered item', 400);
-    
+
     item.itemStatus = 'Cancelled';
 
     const product = await Products.findById(item.productId)
-    if(product){
-      console.log("start of prodct ",product)
+    if (product) {
+      console.log("start of prodct ", product)
       const variant = product.variants.id(item.variantId)
-      console.log(" variant : ",variant)
+      console.log(" variant : ", variant)
       console.log("start of prodct condotion asin")
       const currentStock = variant.stock[item.size] || 0
-     
+
       variant.stock[item.size] = currentStock + item.quantity
-    
+
       product.markModified('variants')
-      
+
       await product.save()
     }
 
@@ -182,13 +183,13 @@ export const returnOrder = async (userId, orderId, itemId, reason) => {
   if (item.itemStatus !== 'Delivered') {
     throw new AppError('Only delivered items can be returned', 400);
   }
-  
+
   if (item.itemStatus === 'Return Requested' || item.itemStatus === 'Returned') {
     throw new AppError('Return already requested for this item', 400);
   }
 
   item.itemStatus = 'Return Requested';
-  item.returnReason = reason; 
+  item.returnReason = reason;
 
   order.timeline.push({
     status: 'Return Requested',
@@ -217,25 +218,25 @@ export const getAllOrdersService = async (page, limit, status, search) => {
 
   if (status && status !== 'All') {
     if (status === 'Return Requested') {
-    
-        query['items.itemStatus'] = 'Return Requested';
+
+      query['items.itemStatus'] = 'Return Requested';
     } else {
-        query.status = status;
+      query.status = status;
     }
   }
 
   if (search) {
     query.$or = [
       { orderId: { $regex: search, $options: 'i' } },
-      { "items.name": { $regex: search, $options: 'i' } } 
+      { "items.name": { $regex: search, $options: 'i' } }
     ];
   }
 
   const skip = (page - 1) * limit;
 
   const orders = await Order.find(query)
-    .populate('user', 'firstName email') 
-    .sort({ createdAt: -1 }) 
+    .populate('user', 'firstName email')
+    .sort({ createdAt: -1 })
     .skip(skip)
     .limit(parseInt(limit));
 
@@ -296,7 +297,7 @@ export const updateOrderStatus = async (orderId, status) => {
   const order = await Order.findByIdAndUpdate(
     orderId,
     { status: status },
-    { new: true } 
+    { new: true }
   );
   if (!order) throw new AppError('Order is not found', 404, 'ORDER_IS_NOT_FOUND')
   return order
@@ -305,15 +306,15 @@ export const updateOrderStatus = async (orderId, status) => {
 export const updateOrderItemStatus = async (orderId, itemId, status) => {
   const Order = getModel('Order');
   const order = await Order.findById(orderId);
-  
+
   if (!order) throw new AppError('Order is not found', 404, 'ORDER_IS_NOT_FOUND');
-  
+
   const item = order.items.id(itemId);
   if (!item) throw new AppError('Ordered item is not found', 404, 'ORDERED_ITEM_IS_NOT_FOUND');
-  
+
   const oldStatus = item.itemStatus;
-  
-  
+
+
   item.itemStatus = status;
 
 
@@ -324,12 +325,12 @@ export const updateOrderItemStatus = async (orderId, itemId, status) => {
   });
 
 
-  const allCompleted = order.items.every(i => 
+  const allCompleted = order.items.every(i =>
     ['Returned', 'Cancelled'].includes(i.itemStatus)
   );
 
   if (allCompleted) {
-    order.status = 'Returned'; 
+    order.status = 'Returned';
   }
 
   await order.save();
