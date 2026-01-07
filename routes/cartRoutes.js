@@ -13,8 +13,7 @@ const router = express.Router();
 
 // 1. Add Item to Cart
 router.post('/add', protect, addToCart); 
-// Note: You can keep this as '/' if you prefer, but update frontend service to match. 
-// I used '/add' in the service code previously.
+
 
 // 2. Get Cart
 router.get('/', protect, getCartItems);

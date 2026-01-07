@@ -17,6 +17,7 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
   const User = getModel('User');
   const Product = getModel('Products');
   let Coupons;
+  let purchasedProduct;
   try { Coupons = getModel('Coupons'); } catch (e) { Coupons = null; }
 
   const cart = await Cart.findOne({ user: userId }).populate('items.productId');
@@ -61,7 +62,7 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
     let itemImage = "https://placehold.co/150";
     if (variant.variantImages?.length > 0) itemImage = variant.variantImages[0];
     else if (product.coverImages?.length > 0) itemImage = product.coverImages[0];
-
+    purchasedProduct = product.productName
     orderItems.push({
       productId: product._id,
       name: product.productName,
@@ -113,12 +114,12 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
   const newTransaction = new Transaction({
     user: userId,
     order: newOrder._id,
-    paymentId : transactionId,
-    amount : newOrder.totalAmount,
-    transactionType : 'Debit',
-    status : 'Success',
-    method : paymentMethod,
-    description : `payment for ${newOrder._id}`
+    paymentId: transactionId,
+    amount: newOrder.totalAmount,
+    transactionType: 'Debit',
+    status: 'Success',
+    method: paymentMethod,
+    description: `payment for ${purchasedProduct}`
   })
 
   await newTransaction.save()
