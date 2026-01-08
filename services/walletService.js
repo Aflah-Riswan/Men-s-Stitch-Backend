@@ -11,7 +11,8 @@ export const getMyWallet = async (userId) => {
   if (!transaction) throw new AppError('Transaction Details is not found', 404, 'TRANSACTION DETAILS IS NOT FOUND')
   return {
     walletBalance: user.walletBalance || 1,
-    transactionDetails: transaction
+    transactionDetails: transaction,
+    referralCode : user.referralCode
   }
 }
 export const addMoneyToWallet = async (userId, data) => {

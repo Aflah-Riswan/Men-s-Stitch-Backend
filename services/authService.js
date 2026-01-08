@@ -7,6 +7,8 @@ import jwt from 'jsonwebtoken';
 import AppError from '../utils/appError.js';
 import { OAuth2Client } from 'google-auth-library';
 import Cart from '../models/cart.js';
+import { generateReferralCode } from '../utils/referralCode.js';
+import Transaction from '../models/transactions.js';
 
 const genearteAccessToken = (user) => {
   return jwt.sign({ id: user._id, role: user.role }, process.env.ACCESS_TOKEN_KEY, { expiresIn: '1d' });
@@ -61,14 +63,31 @@ export const refreshAccessTokenService = async (refreshToken) => {
 
 export const createUserService = async (data) => {
 
+
   const { error, value } = validateUserSignup(data);
   if (error) throw new AppError(error.details[0].message, 400, 'VALIDATION ERROR')
 
-  const { firstName, lastName, phone, email, password } = value;
+  const { firstName, lastName, phone, email, password, referralCode } = value;
+
+  let newReferralCode = generateReferralCode();
+  while (await User.findOne({ referralCode: newReferralCode })) {
+    newReferralCode = generateReferralCode();
+  }
+  let referredByUser = null;
+  let refereeBonus = 0;
+
   const isExisted = await User.findOne({ email });
 
   if (isExisted) throw new AppError('User already exists with this email ', 409, ' USER_ALREADY_EXIST')
 
+  if (referralCode) {
+    referredByUser = await User.findOne({ referralCode: referralCode });
+    if (referredByUser) {
+      refereeBonus = 50;
+    } else {
+
+    }
+  }
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -78,7 +97,10 @@ export const createUserService = async (data) => {
     phone,
     email,
     password: hashedPassword,
-    isPhoneVerified: phone ? true : false
+    isPhoneVerified: phone ? true : false,
+    referralCode: newReferralCode,
+    referredBy: referredByUser ? referredByUser._id : null,
+    walletBalance: refereeBonus
   });
 
   const accessToken = genearteAccessToken(newUser);
@@ -86,6 +108,18 @@ export const createUserService = async (data) => {
   newUser.refreshToken = refreshToken;
 
   const savedUser = await newUser.save();
+    if (refereeBonus > 0) {
+      await Transaction.create({
+        user: newUser._id,
+        amount: refereeBonus,
+        transactionType: 'Credit',
+        status: 'Success',
+        method: 'Wallet',
+        description: `Welcome Bonus (Referred by ${referredByUser.firstName})`,
+        paymentId: `WELCOME-${Date.now()}`
+      });
+    }
+  
 
   if (savedUser) {
     return {
@@ -183,7 +217,7 @@ export const googleLogin = async (token) => {
         totalPrice: 0,
         grandTotal: 0
       });
-      
+
     } else {
 
       if (!user.googleId) {

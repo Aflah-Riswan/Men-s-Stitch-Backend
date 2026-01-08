@@ -9,7 +9,32 @@ import Order from '../models/order.js';
 import Transaction from '../models/transactions.js';
 const getModel = (name) => mongoose.model(name);
 
-// --- PLACE ORDER ---
+const processReferralReward = async (user) => {
+  const User = getModel('User');
+  const Transaction = getModel('Transaction');
+  if (user && user.referredBy && !user.isReferralRewardPaid) {
+    const referrerId = user.referredBy;
+    const rewardAmount = 100;
+    await User.findByIdAndUpdate(referrerId, {
+      $inc: { walletBalance: rewardAmount }
+    });
+    await Transaction.create({
+      user: referrerId,
+      amount: rewardAmount,
+      transactionType: 'Credit',
+      status: 'Success',
+      method: 'Wallet',
+      description: `Referral Reward: ${user.firstName} completed first order`,
+      paymentId: `REF-RWD-${Date.now()}`
+    });
+
+    user.isReferralRewardPaid = true;
+    await user.save();
+    return true;
+  }
+  return false;
+};
+
 export const placeOrder = async (userId, addressId, paymentMethod, transactionId = null) => {
   try {
 
@@ -20,10 +45,6 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
     let Coupons;
     let purchasedProduct;
     try { Coupons = getModel('Coupons'); } catch (e) { Coupons = null; }
-
-
-
-
 
     const cart = await Cart.findOne({ user: userId }).populate('items.productId');
     if (!cart || cart.items.length === 0) {
@@ -187,12 +208,12 @@ export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
     }
 
     if (order.payment.status === 'paid') {
-      await User.findByIdAndUpdate(userId, { $inc: { walletBalance: order.totalAmount } })
+      await User.findByIdAndUpdate(userId, { $inc: { walletBalance: refundAmount } })
     }
     const refundTransaction = new Transaction({
       user: userId,
       order: order._id,
-      paymentId:`REF-${Date.now()}`,
+      paymentId: `REF-${Date.now()}`,
       amount: refundAmount,
       transactionType: 'Credit',
       status: 'Success',
@@ -200,10 +221,10 @@ export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
       description: `Refund for Cancelled Order `
 
     })
-  
+
     await refundTransaction.save()
 
-    order.payment.status ='refunded'
+    order.payment.status = 'refunded'
 
     order.timeline.push({
       status: allCancelled ? 'Cancelled' : 'Updated',
@@ -342,14 +363,22 @@ export const updateOrderStatus = async (orderId, status) => {
     orderId,
     { status: status },
     { new: true }
-  );
+  ).populate('user');
   if (!order) throw new AppError('Order is not found', 404, 'ORDER_IS_NOT_FOUND')
+
+  if (status === 'Delivered') {
+    order.payment.status = 'paid';
+    const currentUser = order.user;
+   await processReferralReward(currentUser)
+
+  }
+  await order.save();
   return order
 }
 
 export const updateOrderItemStatus = async (orderId, itemId, status) => {
   const Order = getModel('Order');
-  const order = await Order.findById(orderId);
+  const order = await Order.findById(orderId).populate('user');
 
   if (!order) throw new AppError('Order is not found', 404, 'ORDER_IS_NOT_FOUND');
 
@@ -357,10 +386,7 @@ export const updateOrderItemStatus = async (orderId, itemId, status) => {
   if (!item) throw new AppError('Ordered item is not found', 404, 'ORDERED_ITEM_IS_NOT_FOUND');
 
   const oldStatus = item.itemStatus;
-
-
   item.itemStatus = status;
-
 
   order.timeline.push({
     status: status,
@@ -368,15 +394,22 @@ export const updateOrderItemStatus = async (orderId, itemId, status) => {
     date: new Date()
   });
 
-
   const allCompleted = order.items.every(i =>
     ['Returned', 'Cancelled'].includes(i.itemStatus)
   );
 
+  const allDelivered = order.items.every(i => i.itemStatus === 'Delivered');
+
   if (allCompleted) {
     order.status = 'Returned';
   }
-
+ 
+  if(allDelivered) {
+    order.status ='Delivered'
+    order.payment.status ='paid'
+    await processReferralReward(order.user)
+  }
+ 
   await order.save();
   return order;
 };

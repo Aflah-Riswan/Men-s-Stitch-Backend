@@ -5,7 +5,7 @@ const addressSchema = new mongoose.Schema({
   lastName: { type: String, required: true, trim: true },
   phoneNumber: { type: String, required: true, trim: true },
   addressLine1: { type: String, required: true, trim: true },
-  addressLine2: { type: String , trim: true },
+  addressLine2: { type: String, trim: true },
   city: { type: String, required: true, trim: true },
   state: { type: String, required: true, trim: true, },
   country: { type: String, required: true, trim: true },
@@ -19,8 +19,8 @@ const userSchema = new mongoose.Schema({
   lastName: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true, lowerCase: true, trim: true, },
   profilePic: { type: String, default: "" },
-  phone: { type: String, required: false, trim: true , default: null },
-  password: { type: String, required: false, default:null },
+  phone: { type: String, required: false, trim: true, default: null },
+  password: { type: String, required: false, default: null },
   walletBalance: { type: Number, default: 0 },
   isPhoneVerified: { type: Boolean, default: false },
   isBlocked: { type: Boolean, default: false },
@@ -31,9 +31,25 @@ const userSchema = new mongoose.Schema({
   },
   refreshToken: { type: String, default: null },
   googleId: { type: String },
+
+  referralCode: {
+    type: String,
+    unique: true,
+    required: false
+  },
+  referredBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+
+  isReferralRewardPaid: {
+    type: Boolean,
+    default: false 
+  }
 },
   { timestamps: true });
 
 const User = mongoose.model('User', userSchema);
-export const Address = mongoose.model('Address',addressSchema)
+export const Address = mongoose.model('Address', addressSchema)
 export default User;
