@@ -7,6 +7,17 @@ import '../models/products.js';
 import '../models/users.js';
 import Order from '../models/order.js';
 import Transaction from '../models/transactions.js';
+
+const VALID_TRANSITIONS = {
+  'Pending': ['Processing', 'Cancelled'],
+  'Processing': ['Shipped', 'Cancelled'],
+  'Shipped': ['Delivered', 'Cancelled'],
+  'Delivered': ['Returned'],
+  'Cancelled': [],
+  'Returned': [],
+  'Return Requested': ['Returned']
+};
+
 const getModel = (name) => mongoose.model(name);
 
 const processReferralReward = async (user) => {
@@ -366,10 +377,19 @@ export const updateOrderStatus = async (orderId, status) => {
   ).populate('user');
   if (!order) throw new AppError('Order is not found', 404, 'ORDER_IS_NOT_FOUND')
 
+  const allowedNextStates = VALID_TRANSITIONS[order.status] || [];
+  if (!allowedNextStates.includes(status)) {
+    throw new AppError(
+      `Invalid Status Update. Cannot go from '${order.status}' to '${status}'`,
+      400,
+      'INVALID_STATUS_TRANSITION'
+    );
+  }
+
   if (status === 'Delivered') {
     order.payment.status = 'paid';
     const currentUser = order.user;
-   await processReferralReward(currentUser)
+    await processReferralReward(currentUser)
 
   }
   await order.save();
@@ -382,9 +402,19 @@ export const updateOrderItemStatus = async (orderId, itemId, status) => {
 
   if (!order) throw new AppError('Order is not found', 404, 'ORDER_IS_NOT_FOUND');
 
+
   const item = order.items.id(itemId);
   if (!item) throw new AppError('Ordered item is not found', 404, 'ORDERED_ITEM_IS_NOT_FOUND');
 
+  const allowedNextStates = VALID_TRANSITIONS[item.itemStatus] || [];
+
+  if (!allowedNextStates.includes(status)) {
+    throw new AppError(
+      `Invalid Status Update. Cannot go from '${item.itemStatus}' to '${status}'`,
+      400,
+      'INVALID_STATUS_TRANSITION'
+    );
+  }
   const oldStatus = item.itemStatus;
   item.itemStatus = status;
 
@@ -403,13 +433,13 @@ export const updateOrderItemStatus = async (orderId, itemId, status) => {
   if (allCompleted) {
     order.status = 'Returned';
   }
- 
-  if(allDelivered) {
-    order.status ='Delivered'
-    order.payment.status ='paid'
+
+  if (allDelivered) {
+    order.status = 'Delivered'
+    order.payment.status = 'paid'
     await processReferralReward(order.user)
   }
- 
+
   await order.save();
   return order;
 };

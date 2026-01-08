@@ -19,7 +19,13 @@ export const placeOnlineOrder = async (req, res, next) => {
   try {
     const userId = req.user._id
     const data = req.body
-    const response = await paymentService.placeOnlineOrder(userId, data)
+    const order = await paymentService.placeOnlineOrder(userId, data)
+    res.status(200).json({
+      success: true,
+      message: "Order placed successfully",
+      orderId: order._id,
+      order: order
+    })
   } catch (error) {
     next(error)
   }

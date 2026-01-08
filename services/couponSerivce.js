@@ -118,3 +118,13 @@ export const deleteCoupon = async (couponId) => {
   }
 }
 
+export const fetchAvailableCoupons = async () => {
+  const currentDate = new Date();
+  const coupons = await Coupons.find({
+    isActive: true,
+    isDeleted: false,
+    expiryDate: { $gte: currentDate } 
+  }).sort({ createdAt: -1 });
+
+  return coupons;
+};

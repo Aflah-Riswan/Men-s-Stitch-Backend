@@ -87,3 +87,14 @@ export const deleteCoupon = async (req,res ,next) =>{
     next(error)
   }
 }
+export const getAvailableCoupons = async (req, res, next) => {
+  try {
+    const coupons = await couponService.fetchAvailableCoupons();
+    res.status(200).json({
+      success: true,
+      coupons
+    });
+  } catch (error) {
+    next(error);
+  }
+}

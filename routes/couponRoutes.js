@@ -1,7 +1,7 @@
 
 import  express  from 'express'
 import { admin, protect } from '../middlewares/authMiddleware.js'
-import { addCoupon, deleteCoupon, getCouponById, getCoupons, updateCoupon, updateIsActive } from '../controllers/couponController.js'
+import { addCoupon, deleteCoupon, getAvailableCoupons, getCouponById, getCoupons, updateCoupon, updateIsActive } from '../controllers/couponController.js'
 import { validateCoupon } from '../middlewares/validateCoupon.js'
 
 
@@ -14,6 +14,7 @@ router.get('/:couponId/edit',protect, admin , getCouponById)
 router.patch('/:couponId/edit',protect , admin , updateIsActive)
 router.put('/:couponId/edit',protect , admin ,validateCoupon ,updateCoupon)
 router.patch('/:couponId/delete',protect , admin ,deleteCoupon )
+router.get('/user-coupons', protect, getAvailableCoupons);
 
 
 export default router

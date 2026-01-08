@@ -28,12 +28,12 @@ export const getCartItems = async (userId) => {
       select: 'productName variants salePrice isListed isDeleted coverImages'
     })
     .populate({
-      path:'user',
-      select : 'email , phone , isPhoneVerified'
+      path: 'user',
+      select: 'email , phone , isPhoneVerified'
     })
     ;
 
-    if (!cartDoc) return { items: [], subTotal: 0, grandTotal: 0, discount: 0 };
+  if (!cartDoc) return { items: [], subTotal: 0, grandTotal: 0, discount: 0 };
 
 
   let cartModified = false;
@@ -62,7 +62,7 @@ export const getCartItems = async (userId) => {
       item.image = null;
       return;
     }
-     const variants = product.variants || []
+    const variants = product.variants || []
     const matchedVariant = variants.find(
       v => v._id.toString() === item.variantId.toString()
     );
@@ -94,11 +94,11 @@ export const getCartItems = async (userId) => {
 
 export const addToCart = async (userId, cartData) => {
   const { productId, variantId, size, quantity, colorCode } = cartData;
-  
+
   const qtyToAdd = Number(quantity);
 
   const product = await Product.findById(productId).populate('mainCategory');
-  
+
   if (!product) throw new AppError('Product not found', 404);
 
   if (!product.isListed || product.isDeleted) {

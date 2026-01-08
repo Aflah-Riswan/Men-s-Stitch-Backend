@@ -16,6 +16,7 @@ import orderRoutes  from './routes/orderRoutes.js'
 import wishlistRoutes from './routes/wishlistRoutes.js'
 import paymentRoutes  from './routes/paymentRoutes.js'
 import walletRoutes from './routes/walletRoutes.js'
+import salesRoutes from './routes/salesRoutes.js'
 const app = express();
 const PORT = 3000;
 
@@ -50,6 +51,8 @@ app.use('/api/orders',orderRoutes)
 app.use('/api/wishlist',wishlistRoutes)
 app.use('/api/payment',paymentRoutes)
 app.use('/api/wallet',walletRoutes)
+app.use('/api/sales',salesRoutes)
+
 app.all('*any', (req, res, next) => {
   res.status(404).json({
     success: false,
