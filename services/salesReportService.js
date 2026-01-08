@@ -35,9 +35,7 @@ const getDateRange = (period, from, to) => {
 
 export const generateSalesReport = async (query) => {
   const { from, to, period } = query;
-  
   const { startDate, endDate } = getDateRange(period, from, to);
-
   const salesData = await Order.aggregate([
     {
       $match: {
