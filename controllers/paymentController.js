@@ -5,7 +5,7 @@ export const createRazorPayOrderId = async (req, res, next) => {
   try {
     console.log(" inside controller")
     const { amount } = req.body
-    console.log(" ampunt : ", amount)
+    console.log(" amount : ", amount)
     const response = await paymentService.createRazorPayOrderId(amount)
 
     return res.json(response)

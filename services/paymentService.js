@@ -27,6 +27,7 @@ const verifyPaymentSignature = (razorpay_order_id, razorpay_payment_id, razorpay
 }
 
 export const createRazorPayOrderId = async (amount) => {
+  console.log(" amount trypw : ",typeof amount)
   if (!amount || isNaN(amount)) {
     throw new AppError("Invalid amount passed to payment service", 404, 'Invalid amount passed to payment service');
   }

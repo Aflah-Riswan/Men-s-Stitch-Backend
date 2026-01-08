@@ -6,131 +6,142 @@ import '../models/cart.js';
 import '../models/products.js';
 import '../models/users.js';
 import Order from '../models/order.js';
-import Products from '../models/products.js';
 import Transaction from '../models/transactions.js';
 const getModel = (name) => mongoose.model(name);
 
 // --- PLACE ORDER ---
 export const placeOrder = async (userId, addressId, paymentMethod, transactionId = null) => {
-  const Order = getModel('Order');
-  const Cart = getModel('Cart');
-  const User = getModel('User');
-  const Product = getModel('Products');
-  let Coupons;
-  let purchasedProduct;
-  try { Coupons = getModel('Coupons'); } catch (e) { Coupons = null; }
+  try {
 
-  const cart = await Cart.findOne({ user: userId }).populate('items.productId');
-  if (!cart || cart.items.length === 0) {
-    throw new AppError("Cart is empty", 400);
-  }
+    const Order = getModel('Order');
+    const Cart = getModel('Cart');
+    const User = getModel('User');
+    const Product = getModel('Products');
+    let Coupons;
+    let purchasedProduct;
+    try { Coupons = getModel('Coupons'); } catch (e) { Coupons = null; }
 
-  const user = await User.findById(userId);
-  const selectedAddr = user.addresses.id(addressId);
-  if (!selectedAddr) {
-    throw new AppError("Delivery address not found", 404);
-  }
 
-  if (paymentMethod === 'wallet') {
-    if (user.walletBalance < cart.grandTotal) {
-      throw new AppError("Insufficient wallet balance", 400);
-    }
-    user.walletBalance -= cart.grandTotal;
-    await user.save();
-  }
 
-  const orderItems = [];
 
-  for (const item of cart.items) {
-    const product = item.productId;
-    if (!product) throw new AppError(`Product not found`, 404);
 
-    const variant = product.variants.id(item.variantId);
-    if (!variant) throw new AppError(`Variant not found for ${product.productName}`, 404);
-
-    const currentStock = variant.stock[item.size] || 0;
-    if (currentStock < item.quantity) {
-      throw new AppError(`Out of stock: ${product.productName} (${item.size})`, 400);
+    const cart = await Cart.findOne({ user: userId }).populate('items.productId');
+    if (!cart || cart.items.length === 0) {
+      throw new AppError("Cart is empty", 400);
     }
 
-    const stockPath = `variants.$.stock.${item.size}`;
-    await Product.findOneAndUpdate(
-      { _id: product._id, "variants._id": item.variantId },
-      { $inc: { [stockPath]: -item.quantity } }
-    );
+    const user = await User.findById(userId);
+    const selectedAddr = user.addresses.id(addressId);
+    if (!selectedAddr) {
+      throw new AppError("Delivery address not found", 404, 'delivery_not_found');
+    }
 
-    let itemImage = "https://placehold.co/150";
-    if (variant.variantImages?.length > 0) itemImage = variant.variantImages[0];
-    else if (product.coverImages?.length > 0) itemImage = product.coverImages[0];
-    purchasedProduct = product.productName
-    orderItems.push({
-      productId: product._id,
-      name: product.productName,
-      image: itemImage,
-      price: item.price,
-      quantity: item.quantity,
-      color: variant.productColor,
-      size: item.size,
-      itemStatus: 'Ordered',
-      variantId: item.variantId
+    if (paymentMethod === 'wallet') {
+      if (user.walletBalance < cart.grandTotal) {
+        throw new AppError("Insufficient wallet balance", 400, 'INSUFFIECIENT_BALANCE');
+      }
+    }
+
+    const orderItems = [];
+
+    for (const item of cart.items) {
+      const product = item.productId;
+      if (!product) throw new AppError(`Product not found`, 404);
+
+      const variant = product.variants.id(item.variantId);
+      if (!variant) throw new AppError(`Variant not found for ${product.productName}`, 404);
+
+      const currentStock = variant.stock[item.size] || 0;
+      if (currentStock < item.quantity) {
+        throw new AppError(`Out of stock: ${product.productName} (${item.size})`, 400);
+      }
+
+      const stockPath = `variants.$.stock.${item.size}`;
+      await Product.findOneAndUpdate(
+        { _id: product._id, "variants._id": item.variantId },
+        { $inc: { [stockPath]: -item.quantity } }
+      );
+
+      let itemImage = "https://placehold.co/150";
+      if (variant.variantImages?.length > 0) itemImage = variant.variantImages[0];
+      else if (product.coverImages?.length > 0) itemImage = product.coverImages[0];
+      purchasedProduct = product.productName
+      orderItems.push({
+        productId: product._id,
+        name: product.productName,
+        image: itemImage,
+        price: item.price,
+        quantity: item.quantity,
+        color: variant.productColor,
+        size: item.size,
+        itemStatus: 'Ordered',
+        variantId: item.variantId
+      });
+    }
+
+    const orderId = `ORD-${uuidv4().slice(0, 8).toUpperCase()}`;
+    const isPaid = (paymentMethod === 'wallet') || (paymentMethod === 'razorpay' && transactionId);
+
+    const newOrder = new Order({
+      user: userId,
+      orderId: orderId,
+      items: orderItems,
+      shippingAddress: {
+        fullName: `${selectedAddr.firstName} ${selectedAddr.lastName}`,
+        phone: selectedAddr.phoneNumber,
+        street: `${selectedAddr.addressLine1} ${selectedAddr.addressLine2 || ''}`.trim(),
+        city: selectedAddr.city,
+        state: selectedAddr.state,
+        country: selectedAddr.country,
+        pincode: selectedAddr.pincode
+      },
+      payment: {
+        method: paymentMethod,
+        status: isPaid ? 'paid' : 'pending',
+        transactionId: transactionId
+      },
+      subtotal: cart.subTotal,
+      discount: cart.discount,
+      shippingFee: cart.shippingFee,
+      totalAmount: cart.grandTotal,
+      couponCode: cart.couponCode,
+      couponId: cart.couponId,
+      status: isPaid ? 'Processing' : 'Pending',
+      timeline: [
+        { status: isPaid ? 'Processing' : 'Pending', comment: isPaid ? `Order placed. Payment ID: ${transactionId || 'Wallet'}` : 'Order placed successfully' }
+      ]
     });
+
+    await newOrder.save();
+    if (isPaid) {
+      let txnIdToSave = transactionId
+      if (paymentMethod === 'wallet') {
+        user.walletBalance -= cart.grandTotal
+        await user.save()
+        txnIdToSave = `WAL-${Date.now()}`
+      }
+
+      const newTransaction = new Transaction({
+        user: userId,
+        order: newOrder._id,
+        paymentId: txnIdToSave,
+        amount: newOrder.totalAmount,
+        transactionType: 'Debit',
+        status: 'Success',
+        method: paymentMethod,
+        description: `payment for ${purchasedProduct}`
+      })
+      await newTransaction.save()
+    }
+    if (cart.couponId && Coupons) {
+      await Coupons.findByIdAndUpdate(cart.couponId, { $inc: { usedCount: 1 } });
+    }
+    await Cart.findOneAndDelete({ user: userId });
+    return newOrder;
+  } catch (error) {
+    console.log(" error found iajn : ", error)
+    throw error
   }
-
-  const orderId = `ORD-${uuidv4().slice(0, 8).toUpperCase()}`;
-  const isPaid = paymentMethod === 'wallet' || transactionId;
-
-  const newOrder = new Order({
-    user: userId,
-    orderId: orderId,
-    items: orderItems,
-    shippingAddress: {
-      fullName: `${selectedAddr.firstName} ${selectedAddr.lastName}`,
-      phone: selectedAddr.phoneNumber,
-      street: `${selectedAddr.addressLine1} ${selectedAddr.addressLine2 || ''}`.trim(),
-      city: selectedAddr.city,
-      state: selectedAddr.state,
-      country: selectedAddr.country,
-      pincode: selectedAddr.pincode
-    },
-    payment: {
-      method: paymentMethod,
-      status: isPaid ? 'paid' : 'pending',
-      transactionId: transactionId
-    },
-    subtotal: cart.subTotal,
-    discount: cart.discount,
-    shippingFee: cart.shippingFee,
-    totalAmount: cart.grandTotal,
-    couponCode: cart.couponCode,
-    couponId: cart.couponId,
-    status: isPaid ? 'Processing' : 'Pending',
-    timeline: [
-      { status: isPaid ? 'Processing' : 'Pending', comment: isPaid ? `Order placed. Payment ID: ${transactionId || 'Wallet'}` : 'Order placed successfully' }
-    ]
-  });
-
-  await newOrder.save();
-
-  const newTransaction = new Transaction({
-    user: userId,
-    order: newOrder._id,
-    paymentId: transactionId,
-    amount: newOrder.totalAmount,
-    transactionType: 'Debit',
-    status: 'Success',
-    method: paymentMethod,
-    description: `payment for ${purchasedProduct}`
-  })
-
-  await newTransaction.save()
-
-  if (cart.couponId && Coupons) {
-    await Coupons.findByIdAndUpdate(cart.couponId, { $inc: { usedCount: 1 } });
-  }
-
-  await Cart.findOneAndDelete({ user: userId });
-
-  return newOrder;
 };
 
 export const getUserOrders = async (userId) => {
@@ -141,6 +152,7 @@ export const getUserOrders = async (userId) => {
 export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
   const Order = getModel('Order');
   const Products = getModel('Products');
+  const User = getModel('User')
   const order = await Order.findOne({ _id: orderId, user: userId });
 
   if (!order) throw new AppError('Order not found', 404);
@@ -151,10 +163,10 @@ export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
     if (!item) throw new AppError('Item not found in this order', 404);
 
     if (item.itemStatus === 'Cancelled') throw new AppError('Item is already cancelled', 400);
-    if (item.itemStatus === 'Delivered') throw new AppError('Cannot cancel a delivered item', 400);
+    if (item.itemStatus === 'Delivered' || item.itemStatus === 'Shipped') throw new AppError('Cannot cancel order at this stage', 400);
 
     item.itemStatus = 'Cancelled';
-
+    let refundAmount = item.price * item.quantity
     const product = await Products.findById(item.productId)
     if (product) {
       console.log("start of prodct ", product)
@@ -162,9 +174,7 @@ export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
       console.log(" variant : ", variant)
       console.log("start of prodct condotion asin")
       const currentStock = variant.stock[item.size] || 0
-
       variant.stock[item.size] = currentStock + item.quantity
-
       product.markModified('variants')
 
       await product.save()
@@ -175,6 +185,25 @@ export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
       order.status = 'Cancelled';
       order.cancellationReason = 'All items cancelled by user';
     }
+
+    if (order.payment.status === 'paid') {
+      await User.findByIdAndUpdate(userId, { $inc: { walletBalance: order.totalAmount } })
+    }
+    const refundTransaction = new Transaction({
+      user: userId,
+      order: order._id,
+      paymentId:`REF-${Date.now()}`,
+      amount: refundAmount,
+      transactionType: 'Credit',
+      status: 'Success',
+      method: 'Wallet',
+      description: `Refund for Cancelled Order `
+
+    })
+  
+    await refundTransaction.save()
+
+    order.payment.status ='refunded'
 
     order.timeline.push({
       status: allCancelled ? 'Cancelled' : 'Updated',
