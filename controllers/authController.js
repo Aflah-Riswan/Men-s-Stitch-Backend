@@ -4,7 +4,8 @@ export const loginUser = async (req, res, next) => {
 
   try {
     const result = await authService.loginService(req.body);
-    res.cookie("refreshToken", result.refreshToken, {
+    const cookieName = result.role === 'admin' ? 'adminRefreshToken' : 'userRefreshToken'
+    res.cookie(cookieName, result.refreshToken, {
       httpOnly: true,
       secure: true,
       sameSite: "strict"
@@ -19,7 +20,7 @@ export const loginUser = async (req, res, next) => {
 
 export const refreshAccessToken = async (req, res, next) => {
   try {
-    const { refreshToken } = req.cookies;
+    const refreshToken = req.cookies.userRefreshToken || req.cookies.adminRefreshToken
     const result = await authService.refreshAccessTokenService(refreshToken);
 
     return res.json({
@@ -36,7 +37,7 @@ export const createUser = async (req, res, next) => {
   try {
 
     const response = await authService.createUserService(req.body);
-    res.cookie('refreshToken', response.refreshToken, {
+    res.cookie('userRefreshToken', response.refreshToken, {
       httpOnly: true,
       secure: true,
       sameSite: 'strict'

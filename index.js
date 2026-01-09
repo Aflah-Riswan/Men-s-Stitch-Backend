@@ -17,6 +17,7 @@ import wishlistRoutes from './routes/wishlistRoutes.js'
 import paymentRoutes  from './routes/paymentRoutes.js'
 import walletRoutes from './routes/walletRoutes.js'
 import salesRoutes from './routes/salesRoutes.js'
+import adminRoutes from './routes/adminRoutes.js'
 const app = express();
 const PORT = 3000;
 
@@ -37,7 +38,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 
-
+app.use('/api/admin',adminRoutes)
 app.use('/api/auth', authRoutes);
 app.use('/api', uploadRoutes);
 app.use('/api/categories', categoryRoutes);

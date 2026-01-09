@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.get('/', protect, admin, getUsers);
 router.get('/analytics', getCustomerAnalytics);
-router.patch('/:id/block', blockUser);
+router.patch('/:id/block',protect,admin, blockUser);
 router.get('/info',protect, getUserInfo)
 router.put('/update-details',protect,upload.single('profilePic'), updateUserDetails)
 router.patch('/update/password' , protect , changeUserPassword)
