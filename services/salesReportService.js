@@ -25,10 +25,10 @@ const getDateRange = (period, from, to) => {
     startDate = new Date(new Date(from).setHours(0, 0, 0, 0));
     endDate = new Date(new Date(to).setHours(23, 59, 59, 999));
   } else {
-    startDate = new Date(0); 
+    startDate = new Date(0);
     endDate = new Date();
   }
-  
+
   return { startDate, endDate };
 };
 
@@ -36,10 +36,12 @@ const getDateRange = (period, from, to) => {
 export const generateSalesReport = async (query) => {
   const { from, to, period } = query;
   const { startDate, endDate } = getDateRange(period, from, to);
+
+ 
   const salesData = await Order.aggregate([
     {
       $match: {
-        status: 'Delivered', 
+        status: 'Delivered',
         createdAt: { $gte: startDate, $lte: endDate }
       }
     },
@@ -48,17 +50,18 @@ export const generateSalesReport = async (query) => {
         _id: null,
         totalOrders: { $sum: 1 },
         totalSales: { $sum: "$totalAmount" },
-        totalDiscount: { $sum: "$discount" } 
+        totalDiscount: { $sum: "$discount" }
       }
     }
   ]);
 
+ 
   const orders = await Order.find({
-    status: 'Delivered',
+     status : 'Delivered' ,
     createdAt: { $gte: startDate, $lte: endDate }
   })
-  .populate('user', 'firstName email')
-  .sort({ createdAt: -1 });
+    .populate('user', 'firstName email')
+    .sort({ createdAt: -1 });
 
   return {
     summary: salesData[0] || { totalOrders: 0, totalSales: 0, totalDiscount: 0 },

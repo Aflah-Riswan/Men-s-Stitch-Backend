@@ -69,7 +69,7 @@ export const validateUserSignup = (credentials) => {
       .messages({
         'any.only': 'Passwords do not match'
       }),
-      referralCode: Joi.string().optional(),
+      referralCode: Joi.string().allow('').optional(),
 
     agreeTerms: Joi.boolean().valid(true).required()
   });
