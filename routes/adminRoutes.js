@@ -44,27 +44,19 @@ import {
 } from '../controllers/couponController.js';
 
 import { getSalesReport } from '../controllers/salesController.js';
+import { getTransactions } from '../controllers/transactionController.js';
 
 const router = express.Router();
 
-// 🔒 GLOBAL SECURITY: All routes below need Admin Token
 router.use(protect, admin);
 
-
-// ==========================================
-// 👥 USER MANAGEMENT
-// ==========================================
 router.get('/users', getUsers);
 router.get('/users/analytics', getCustomerAnalytics);
 router.patch('/users/:id/block', blockUser);
 
-
-// ==========================================
-// 📦 PRODUCT MANAGEMENT
-// ==========================================
 router.get('/products', getProducts);
 router.post('/products', createProduct);
-router.get('/products/:id', getProductById); // For Editing
+router.get('/products/:id', getProductById); 
 router.put('/products/:id', updateProduct);
 router.patch('/products/:id/toggle', productToggleIsList);
 router.patch('/products/:id/delete', deleteProduct);
@@ -91,11 +83,8 @@ router.get('/coupons', getCoupons);
 router.patch('/coupons/:couponId/status', updateIsActive);
 router.patch('/coupons/:couponId/delete', deleteCoupon);
 
-
-// ==========================================
-// 📈 SALES REPORT
-// ==========================================
 router.get('/sales/report', getSalesReport);
 
+router.get('/transactions' , getTransactions)
 
 export default router;
