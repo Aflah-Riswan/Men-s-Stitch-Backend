@@ -111,6 +111,10 @@ export const analyticsService = async () => {
 export const getUserInfo = async (userId) => {
   console.log("id : ", userId)
   const user = await User.findById(userId)
+  
+  if (user.isBlocked) {
+    throw new AppError('You are blocked ', 403, 'USER-IS_BLOCKED')
+  }
   if (!user) throw new AppError("User is not found ", 404, "USER_IS_NOT_FOUND")
   console.log("user : ", user)
   return user
@@ -144,10 +148,10 @@ export const changePasswordService = async (userId, currentPassword, newPassword
 };
 
 export const updatePhoneNumber = async (userId, phone) => {
-  const user = await User.findById(userId )
+  const user = await User.findById(userId)
   if (!user) throw new AppError('User is not found', 404, 'USER_IS_NOT_FOUND')
   user.phone = phone
   user.isPhoneVerified = true
   await user.save()
-  return { success: true , message :' updated phone number', phone:user.phone , isPhoneVerified : user.isPhoneVerified }
+  return { success: true, message: ' updated phone number', phone: user.phone, isPhoneVerified: user.isPhoneVerified }
 }

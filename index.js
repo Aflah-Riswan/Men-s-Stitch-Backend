@@ -12,9 +12,9 @@ import reviewRoutes from './routes/reviewRoutes.js';
 import couponRoutes from './routes/couponRoutes.js'
 import addressRoutes from './routes/addressRoutes.js'
 import cartRoutes from './routes/cartRoutes.js'
-import orderRoutes  from './routes/orderRoutes.js'
+import orderRoutes from './routes/orderRoutes.js'
 import wishlistRoutes from './routes/wishlistRoutes.js'
-import paymentRoutes  from './routes/paymentRoutes.js'
+import paymentRoutes from './routes/paymentRoutes.js'
 import walletRoutes from './routes/walletRoutes.js'
 import salesRoutes from './routes/salesRoutes.js'
 import adminRoutes from './routes/adminRoutes.js'
@@ -31,28 +31,34 @@ app.use(cors({
   origin: 'http://localhost:5173',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'Cache-Control',
+    'Pragma',
+    'Expires'
+  ],
 }));
 
 app.use(express.json());
 app.use(cookieParser());
 
 
-app.use('/api/admin',adminRoutes)
+app.use('/api/admin', adminRoutes)
 app.use('/api/auth', authRoutes);
 app.use('/api', uploadRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/reviews', reviewRoutes);
-app.use('/api/coupons',couponRoutes)
-app.use('/api/address',addressRoutes)
-app.use('/api/cart',cartRoutes)
-app.use('/api/orders',orderRoutes)
-app.use('/api/wishlist',wishlistRoutes)
-app.use('/api/payment',paymentRoutes)
-app.use('/api/wallet',walletRoutes)
-app.use('/api/sales',salesRoutes)
+app.use('/api/coupons', couponRoutes)
+app.use('/api/address', addressRoutes)
+app.use('/api/cart', cartRoutes)
+app.use('/api/orders', orderRoutes)
+app.use('/api/wishlist', wishlistRoutes)
+app.use('/api/payment', paymentRoutes)
+app.use('/api/wallet', walletRoutes)
+app.use('/api/sales', salesRoutes)
 
 app.all('*any', (req, res, next) => {
   res.status(404).json({

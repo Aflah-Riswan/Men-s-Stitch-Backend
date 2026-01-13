@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/users.js';
 
 export const protect = async (req, res, next) => {
+  
   let token;
 
   if (
@@ -36,6 +37,7 @@ export const admin = async (req, res, next) => {
     if (user && user.role === 'admin') {
       next();
     } else {
+      console.log(" error found ")
       return res.status(403).json({ error: 'Not authorized as admin' });
     }
   } catch (error) {

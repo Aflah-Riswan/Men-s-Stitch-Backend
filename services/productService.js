@@ -37,7 +37,7 @@ export const getProductsService = async (data) => {
   } = data;
 
   const skip = (page - 1) * limit;
-  const filterQuery = { isDeleted: false };
+  const filterQuery = { isDeleted: false ,};
 
   if (search) {
     filterQuery.$or = [
@@ -186,6 +186,7 @@ export const getProductsByCategoryService = async (slug, queryParams) => {
     page = 1,
     limit = 10,
     search,
+    sort,
     ...dynamicFilters
   } = queryParams;
 
@@ -193,6 +194,7 @@ export const getProductsByCategoryService = async (slug, queryParams) => {
     isDeleted: false,
     isListed: true,
   };
+
   const regexValue = new RegExp(`^${slug}$`, 'i')
   if (slug.toLowerCase() !== 'all') {
     const categoryDoc = await Category.findOne({
@@ -219,8 +221,10 @@ export const getProductsByCategoryService = async (slug, queryParams) => {
     }));
   }
 
+  
   if (search) {
-    filter.$text = { $search: search };
+   
+    filter.productName = { $regex: search, $options: 'i' };
   }
 
   Object.keys(dynamicFilters).forEach(key => {
@@ -241,6 +245,34 @@ export const getProductsByCategoryService = async (slug, queryParams) => {
     }
   });
 
+  
+  let sortOptions = { createdAt: -1 }; 
+  if (sort) {
+    switch (sort) {
+      case 'price_low_high':
+        sortOptions = { salePrice: 1 };
+        break;
+      case 'price_high_low':
+        sortOptions = { salePrice: -1 };
+        break;
+      case 'newest':
+        sortOptions = { createdAt: -1 };
+        break;
+      case 'oldest':
+        sortOptions = { createdAt: 1 };
+        break;
+      case 'a_z':
+        sortOptions = { productName: 1 }; 
+        break;
+      case 'z_a':
+        sortOptions = { productName: -1 };
+        break;
+      default:
+        sortOptions = { createdAt: -1 };
+    }
+  }
+  
+
   const pageNum = Number(page);
   const limitNum = Number(limit);
   const skip = (pageNum - 1) * limitNum;
@@ -248,6 +280,7 @@ export const getProductsByCategoryService = async (slug, queryParams) => {
   console.log("Final MongoDB Filter:", JSON.stringify(filter, null, 2));
 
   const products = await Products.find(filter)
+    .sort(sortOptions) 
     .skip(skip)
     .limit(limitNum);
 

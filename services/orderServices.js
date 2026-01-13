@@ -9,13 +9,15 @@ import Order from '../models/order.js';
 import Transaction from '../models/transactions.js';
 
 const VALID_TRANSITIONS = {
+  'Ordered': ['Processing', 'Cancelled', 'Shipped'],
   'Pending': ['Processing', 'Cancelled'],
   'Processing': ['Shipped', 'Cancelled'],
   'Shipped': ['Delivered', 'Cancelled'],
-  'Delivered': ['Returned'],
+  'Delivered': ['Returned', 'Return Approved'],
   'Cancelled': [],
   'Returned': [],
-  'Return Requested': ['Returned']
+  'Return Requested': ['Returned', 'Return Approved','Return Rejected'],
+  'Return Approved': ['Returned']
 };
 
 const getModel = (name) => mongoose.model(name);
@@ -177,51 +179,163 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
 };
 
 export const getUserOrders = async (userId) => {
+  const User = getModel('User')
+  const user = await User.findOne({ _id: userId })
+  if (user.isBlocked) {
+    throw new AppError('You are blocked ', 403, 'USER-IS_BLOCKED')
+  }
+  if (user.isBlocked) throw new AppError('You are blocked', 403, 'YOU_ARE_BLOCKED')
+
   const Order = getModel('Order');
   return await Order.find({ user: userId }).sort({ createdAt: -1 });
 };
 
-export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
+
+
+// --- HELPER: Cancel Full Order ---
+export const cancelFullOrder = async (userId, orderId, reason) => {
   const Order = getModel('Order');
   const Products = getModel('Products');
-  const User = getModel('User')
-  const order = await Order.findOne({ _id: orderId, user: userId });
+  const User = getModel('User');
+  const Transaction = getModel('Transaction');
 
+  const order = await Order.findOne({ _id: orderId, user: userId });
   if (!order) throw new AppError('Order not found', 404);
 
-  if (itemId) {
-    const item = order.items.id(itemId);
-    console.log(" items : ", item)
-    if (!item) throw new AppError('Item not found in this order', 404);
+  // 1. Check Main Order Status
+  if (order.status === 'Cancelled') throw new AppError('Order is already cancelled', 400);
+  if (['Delivered', 'Shipped', 'Returned'].includes(order.status)) {
+    throw new AppError('Cannot cancel order at this stage', 400);
+  }
 
-    if (item.itemStatus === 'Cancelled') throw new AppError('Item is already cancelled', 400);
-    if (item.itemStatus === 'Delivered' || item.itemStatus === 'Shipped') throw new AppError('Cannot cancel order at this stage', 400);
+  const hasUncancellableItems = order.items.some(item =>
+    ['Shipped', 'Delivered', 'Returned', 'Return Requested'].includes(item.itemStatus)
+  );
 
-    item.itemStatus = 'Cancelled';
-    let refundAmount = item.price * item.quantity
-    const product = await Products.findById(item.productId)
-    if (product) {
-      console.log("start of prodct ", product)
-      const variant = product.variants.id(item.variantId)
-      console.log(" variant : ", variant)
-      console.log("start of prodct condotion asin")
-      const currentStock = variant.stock[item.size] || 0
-      variant.stock[item.size] = currentStock + item.quantity
-      product.markModified('variants')
+  if (hasUncancellableItems) {
+    throw new AppError(
+      'Cannot cancel the entire order because some items have already been shipped or delivered. Please cancel the remaining items individually.',
+      400
+    );
+  }
 
-      await product.save()
+  // 3. Update Order Status
+  order.status = 'Cancelled';
+  order.cancellationReason = reason || 'Cancelled by user';
+
+  // 4. Loop through ALL items to restock
+  for (const item of order.items) {
+    if (item.itemStatus !== 'Cancelled') {
+      item.itemStatus = 'Cancelled';
+
+      const product = await Products.findById(item.productId);
+      if (product) {
+        const variant = product.variants.id(item.variantId);
+        if (variant) {
+          variant.stock[item.size] = (variant.stock[item.size] || 0) + item.quantity;
+          product.markModified('variants');
+          await product.save();
+        }
+      }
     }
+  }
 
-    const allCancelled = order.items.every(i => i.itemStatus === 'Cancelled');
-    if (allCancelled) {
-      order.status = 'Cancelled';
-      order.cancellationReason = 'All items cancelled by user';
-    }
+  // 5. Process Full Refund (Grand Total)
+  if (order.payment.status === 'paid') {
+    const refundAmount = order.totalAmount;
 
-    if (order.payment.status === 'paid') {
-      await User.findByIdAndUpdate(userId, { $inc: { walletBalance: refundAmount } })
+    await User.findByIdAndUpdate(userId, { $inc: { walletBalance: refundAmount } });
+
+    await Transaction.create({
+      user: userId,
+      order: order._id,
+      paymentId: `REF-FULL-${Date.now()}`,
+      amount: refundAmount,
+      transactionType: 'Credit',
+      status: 'Success',
+      method: 'Wallet',
+      description: `Full Refund for Order #${order.orderId}`
+    });
+
+    order.payment.status = 'refunded';
+  }
+
+  // 6. Update Timeline
+  order.timeline.push({
+    status: 'Cancelled',
+    comment: `Entire order cancelled by user. Reason: ${reason}`,
+    date: new Date()
+  });
+
+  return await order.save();
+};
+
+export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
+
+
+  if (!itemId) {
+    return await cancelFullOrder(userId, orderId, reason);
+  }
+
+  const Order = getModel('Order');
+  const Products = getModel('Products');
+  const User = getModel('User');
+  const Coupons = getModel('Coupons');
+  const Transaction = getModel('Transaction');
+
+  const order = await Order.findOne({ _id: orderId, user: userId });
+  if (!order) throw new AppError('Order not found', 404);
+
+  const item = order.items.id(itemId);
+  if (!item) throw new AppError('Item not found in this order', 404);
+
+  if (item.itemStatus === 'Cancelled') throw new AppError('Item is already cancelled', 400);
+  if (['Delivered', 'Shipped', 'Returned','Return Approved','Return Rejected'].includes(item.itemStatus)) {
+    throw new AppError('Cannot cancel item at this stage', 400);
+  }
+
+  if (order.couponCode) {
+    const coupon = await Coupons.findOne({ couponCode: order.couponCode });
+
+    if (coupon && coupon.minPurchaseAmount) {
+      let currentActiveTotal = 0;
+      order.items.forEach(i => {
+        if (i.itemStatus !== 'Cancelled' && i._id.toString() !== itemId.toString()) {
+          currentActiveTotal += (i.price * i.quantity);
+        }
+      });
+
+      if (currentActiveTotal < coupon.minPurchaseAmount) {
+        throw new AppError(
+          `Cancelling this item drops the order value below ₹${coupon.minPurchaseAmount}, which is required for the applied coupon. Please cancel the entire order instead.`,
+          400,
+          'COUPON_VIOLATION'
+        );
+      }
     }
-    const refundTransaction = new Transaction({
+  }
+
+  // 1. Update Item Status
+  item.itemStatus = 'Cancelled';
+
+  // 2. Restock Product
+  const product = await Products.findById(item.productId);
+  if (product) {
+    const variant = product.variants.id(item.variantId);
+    if (variant) {
+      variant.stock[item.size] = (variant.stock[item.size] || 0) + item.quantity;
+      product.markModified('variants');
+      await product.save();
+    }
+  }
+
+
+  let refundAmount = item.price * item.quantity;
+
+  if (order.payment.status === 'paid') {
+    await User.findByIdAndUpdate(userId, { $inc: { walletBalance: refundAmount } });
+
+    await Transaction.create({
       user: userId,
       order: order._id,
       paymentId: `REF-${Date.now()}`,
@@ -229,20 +343,23 @@ export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
       transactionType: 'Credit',
       status: 'Success',
       method: 'Wallet',
-      description: `Refund for Cancelled Order `
-
-    })
-
-    await refundTransaction.save()
-
-    order.payment.status = 'refunded'
-
-    order.timeline.push({
-      status: allCancelled ? 'Cancelled' : 'Updated',
-      comment: `Item (${item.name}) cancelled by user`,
-      date: new Date()
+      description: `Refund for Cancelled Item: ${item.name}`
     });
   }
+
+
+  const allCancelled = order.items.every(i => i.itemStatus === 'Cancelled');
+  if (allCancelled) {
+    order.status = 'Cancelled';
+    order.cancellationReason = 'All items cancelled by user';
+    if (order.payment.status === 'paid') order.payment.status = 'refunded';
+  }
+
+  order.timeline.push({
+    status: allCancelled ? 'Cancelled' : 'Updated',
+    comment: `Item (${item.name}) cancelled by user. Reason: ${reason}`,
+    date: new Date()
+  });
 
   return await order.save();
 };
@@ -279,6 +396,7 @@ export const returnOrder = async (userId, orderId, itemId, reason) => {
 
 export const getOrderDetails = async (orderId) => {
   const Order = getModel('Order');
+
   const order = await Order.findById(orderId);
 
   if (!order) {
@@ -370,12 +488,11 @@ export const getOrderDetailsAdmin = async (orderId) => {
 }
 
 export const updateOrderStatus = async (orderId, status) => {
-  const order = await Order.findByIdAndUpdate(
-    orderId,
-    { status: status },
-    { new: true }
-  ).populate('user');
-  if (!order) throw new AppError('Order is not found', 404, 'ORDER_IS_NOT_FOUND')
+  const Order = getModel('Order');
+
+  const order = await Order.findById(orderId).populate('user');
+  if (!order) throw new AppError('Order is not found', 404, 'ORDER_IS_NOT_FOUND');
+
 
   const allowedNextStates = VALID_TRANSITIONS[order.status] || [];
   if (!allowedNextStates.includes(status)) {
@@ -386,15 +503,16 @@ export const updateOrderStatus = async (orderId, status) => {
     );
   }
 
+  order.status = status;
+
   if (status === 'Delivered') {
     order.payment.status = 'paid';
-    const currentUser = order.user;
-    await processReferralReward(currentUser)
-
+    await processReferralReward(order.user);
   }
+
   await order.save();
-  return order
-}
+  return order;
+};
 
 export const updateOrderItemStatus = async (orderId, itemId, status) => {
   const Order = getModel('Order');

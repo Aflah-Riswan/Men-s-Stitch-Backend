@@ -9,7 +9,7 @@ import { validateCoupon } from '../middlewares/validateCoupon.js'
 const router = express.Router()
 
 // router.post('/' ,protect , admin ,validateCoupon,addCoupon)
-// router.get('/',getCoupons)
+router.get('/',getCoupons)
 router.get('/user-coupons', protect, getAvailableCoupons);
 // router.get('/:couponId/edit',protect, admin , getCouponById)
 // router.patch('/:couponId/edit',protect , admin , updateIsActive)

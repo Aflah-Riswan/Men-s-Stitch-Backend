@@ -33,6 +33,10 @@ export const postReview = async (userId , productId , orderId ,rating , comment)
   const order = await Order.findById(orderId);
   const user = await User.findById(userId);
 
+  if(user.isBlocked){
+    throw new AppError('You Are Blocked ',403,'user_is_blocked')
+  }
+
   if (!order) throw new AppError('Order not found', 404, 'ORDER_NOT_FOUND');
   if (!user) throw new AppError('User not found', 404, 'USER_NOT_FOUND');
 

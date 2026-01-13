@@ -1,7 +1,13 @@
+import User from '../models/users.js';
 import WishList from '../models/wishlist.js';
+import AppError from '../utils/appError.js';
 
 export const addToWishList = async (productId, userId) => {
   try {
+    const user = await User.findOne({ _id: userId })
+    if (user.isBlocked) {
+      throw new AppError('You are blocked ', 403, 'USER-IS_BLOCKED')
+    }
     let wishlist = await WishList.findOne({ user: userId });
 
     if (!wishlist) {
@@ -10,14 +16,14 @@ export const addToWishList = async (productId, userId) => {
         products: [{ productId }]
       });
       await wishlist.save();
-      return { success: true, message: 'Item added successfully' }; 
+      return { success: true, message: 'Item added successfully' };
     } else {
       const itemExists = wishlist.products.some((item) => item.productId.toString() === productId);
-      
+
       if (itemExists) {
         return { success: false, message: 'Item already in wishlist' };
       }
-      
+
       wishlist.products.push({ productId });
       await wishlist.save();
       return { success: true, message: 'Item added successfully' };
@@ -38,18 +44,22 @@ export const removeFromWishlist = async (userId, itemId) => {
   if (!wishlist) {
     return { success: false, message: 'Wishlist Not Found' };
   }
-  
+
   const activeProducts = wishlist.products.filter(item => item.productId);
-  
+
   return { success: true, message: 'Item removed', products: activeProducts };
 };
 
 export const getWishlist = async (userId) => {
+  const user = await User.findOne({ _id: userId })
+  if (user.isBlocked) {
+    throw new AppError('You are blocked ', 403, 'USER-IS_BLOCKED')
+  }
   const wishlist = await WishList.findOne({ user: userId })
     .populate('products.productId', 'productName salePrice originalPrice coverImages description');
-    
+
   if (!wishlist) return { success: true, products: [] };
-  
+
   const activeProducts = wishlist.products.filter(item => item.productId);
   return { success: true, products: activeProducts };
 };

@@ -70,19 +70,13 @@ router.patch('/products/:id/toggle', productToggleIsList);
 router.patch('/products/:id/delete', deleteProduct);
 
 
-// ==========================================
-// 🗂️ CATEGORY MANAGEMENT
-// ==========================================
 router.post('/categories', createCategory);
-router.get('/categories/:slug', getCategoryBySlug); // For Editing
+router.get('/categories/:slug', getCategoryBySlug);
 router.put('/categories/:slug', updateCategory);
 router.patch('/categories/:id/toggle', toggleIsList);
 router.patch('/categories/:id/delete', deleteCategory);
 
 
-// ==========================================
-// 🚚 ORDER MANAGEMENT
-// ==========================================
 router.get('/orders', getAllOrders);
 router.get('/orders/stats', getOrderStats);
 router.get('/orders/:orderId', orderDetailsAdmin);
@@ -90,9 +84,6 @@ router.put('/orders/status/:orderId', updateOrderStatus);
 router.put('/orders/item-status/:orderId', updateOrderItemStatus);
 
 
-// ==========================================
-// 🎟️ COUPON MANAGEMENT
-// ==========================================
 router.post('/coupons', addCoupon);
 router.get('/coupons/:couponId', getCouponById);
 router.put('/coupons/:couponId', updateCoupon);

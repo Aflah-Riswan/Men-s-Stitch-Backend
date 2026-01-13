@@ -21,7 +21,11 @@ const recalculateCart = (cart) => {
 };
 
 export const getCartItems = async (userId) => {
-  console.log(userId)
+
+  const user = await User.findOne({ _id: userId })
+  if (user.isBlocked) {
+    throw new AppError('You are blocked ', 403, 'USER-IS_BLOCKED')
+  }
   const cartDoc = await Cart.findOne({ user: userId })
     .populate({
       path: 'items.productId',
@@ -93,6 +97,11 @@ export const getCartItems = async (userId) => {
 
 
 export const addToCart = async (userId, cartData) => {
+
+  const user = await User.findOne({ _id: userId })
+  if (user.isBlocked) {
+    throw new AppError('You are blocked ', 403, 'USER-IS_BLOCKED')
+  }
   const { productId, variantId, size, quantity, colorCode } = cartData;
 
   const qtyToAdd = Number(quantity);

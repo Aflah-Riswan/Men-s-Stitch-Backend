@@ -46,7 +46,7 @@ export const cancelOrder = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Order cancelled successfully',
+      message: itemId ? 'Item cancelled successfully' : 'Entire order cancelled successfully',
       order
     });
   } catch (error) {
