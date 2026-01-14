@@ -45,10 +45,13 @@ import {
 
 import { getSalesReport } from '../controllers/salesController.js';
 import { getTransactions } from '../controllers/transactionController.js';
+import { getDashboardStats } from '../controllers/dashboardController.js';
 
 const router = express.Router();
 
 router.use(protect, admin);
+
+router.get('/dashboard-stats', getDashboardStats);
 
 router.get('/users', getUsers);
 router.get('/users/analytics', getCustomerAnalytics);
