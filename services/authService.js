@@ -27,6 +27,9 @@ export const loginService = async (userData) => {
   const user = await User.findOne({ email });
   if (!user) throw new AppError('User does not find', 404, 'USER_NOT_FOUND')
 
+  console.log("1. Input Password:", password);
+  console.log("2. DB Hashed Password:", user.password);
+
   if (!user.password) {
     throw new AppError(
       'This account was created with Google. Please sign in with Google.',
@@ -36,6 +39,7 @@ export const loginService = async (userData) => {
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
+  console.log("3. Password Match Result:", isMatch);
   if (!isMatch) throw new AppError('Invalid Email or Password ', 401, 'INVALID_CREDENTIALS')
 
   const accessToken = genearteAccessToken(user);
@@ -43,7 +47,7 @@ export const loginService = async (userData) => {
 
   const updated = await User.findByIdAndUpdate(user._id, { refreshToken: refreshToken });
 
-  return { success: true, message: " Welcome to dashboard ", accessToken, refreshToken, role: user.role };
+  return { success: true, accessToken, refreshToken, role: user.role };
 
 
 };
@@ -108,18 +112,18 @@ export const createUserService = async (data) => {
   newUser.refreshToken = refreshToken;
 
   const savedUser = await newUser.save();
-    if (refereeBonus > 0) {
-      await Transaction.create({
-        user: newUser._id,
-        amount: refereeBonus,
-        transactionType: 'Credit',
-        status: 'Success',
-        method: 'Wallet',
-        description: `Welcome Bonus (Referred by ${referredByUser.firstName})`,
-        paymentId: `WELCOME-${Date.now()}`
-      });
-    }
-  
+  if (refereeBonus > 0) {
+    await Transaction.create({
+      user: newUser._id,
+      amount: refereeBonus,
+      transactionType: 'Credit',
+      status: 'Success',
+      method: 'Wallet',
+      description: `Welcome Bonus (Referred by ${referredByUser.firstName})`,
+      paymentId: `WELCOME-${Date.now()}`
+    });
+  }
+
 
   if (savedUser) {
     return {
