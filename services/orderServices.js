@@ -16,7 +16,7 @@ const VALID_TRANSITIONS = {
   'Delivered': ['Returned', 'Return Approved'],
   'Cancelled': [],
   'Returned': [],
-  'Return Requested': ['Returned', 'Return Approved','Return Rejected'],
+  'Return Requested': ['Returned', 'Return Approved', 'Return Rejected'],
   'Return Approved': ['Returned']
 };
 
@@ -48,7 +48,7 @@ const processReferralReward = async (user) => {
   return false;
 };
 
-export const placeOrder = async (userId, addressId, paymentMethod, transactionId = null) => {
+export const placeOrder = async (userId, addressId, paymentMethod, transactionId = null, paymentStatus = 'pending') => {
   try {
 
     const Order = getModel('Order');
@@ -69,8 +69,9 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
     if (!selectedAddr) {
       throw new AppError("Delivery address not found", 404, 'delivery_not_found');
     }
+    const isFailedOrder = paymentStatus === 'failed'
 
-    if (paymentMethod === 'wallet') {
+    if (paymentMethod === 'wallet' && !isFailedOrder) {
       if (user.walletBalance < cart.grandTotal) {
         throw new AppError("Insufficient wallet balance", 400, 'INSUFFIECIENT_BALANCE');
       }
@@ -84,18 +85,18 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
 
       const variant = product.variants.id(item.variantId);
       if (!variant) throw new AppError(`Variant not found for ${product.productName}`, 404);
+      if (!isFailedOrder) {
+        const currentStock = variant.stock[item.size] || 0;
+        if (currentStock < item.quantity) {
+          throw new AppError(`Out of stock: ${product.productName} (${item.size})`, 400);
+        }
 
-      const currentStock = variant.stock[item.size] || 0;
-      if (currentStock < item.quantity) {
-        throw new AppError(`Out of stock: ${product.productName} (${item.size})`, 400);
+        const stockPath = `variants.$.stock.${item.size}`;
+        await Product.findOneAndUpdate(
+          { _id: product._id, "variants._id": item.variantId },
+          { $inc: { [stockPath]: -item.quantity } }
+        );
       }
-
-      const stockPath = `variants.$.stock.${item.size}`;
-      await Product.findOneAndUpdate(
-        { _id: product._id, "variants._id": item.variantId },
-        { $inc: { [stockPath]: -item.quantity } }
-      );
-
       let itemImage = "https://placehold.co/150";
       if (variant.variantImages?.length > 0) itemImage = variant.variantImages[0];
       else if (product.coverImages?.length > 0) itemImage = product.coverImages[0];
@@ -108,14 +109,23 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
         quantity: item.quantity,
         color: variant.productColor,
         size: item.size,
-        itemStatus: 'Ordered',
+        itemStatus: isFailedOrder ? 'Cancelled' : 'Ordered',
         variantId: item.variantId
       });
     }
 
     const orderId = `ORD-${uuidv4().slice(0, 8).toUpperCase()}`;
     const isPaid = (paymentMethod === 'wallet') || (paymentMethod === 'razorpay' && transactionId);
+    let finalOrderStatus = 'Pending'
+    let finalPaymentStatus = 'pending'
 
+    if (isFailedOrder) {
+      finalOrderStatus = 'Failed';
+      finalPaymentStatus = 'failed';
+    } else if ((paymentMethod === 'wallet') || (paymentMethod === 'razorpay' && transactionId)) {
+      finalOrderStatus = 'Processing';
+      finalPaymentStatus = 'paid';
+    }
     const newOrder = new Order({
       user: userId,
       orderId: orderId,
@@ -131,7 +141,7 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
       },
       payment: {
         method: paymentMethod,
-        status: isPaid ? 'paid' : 'pending',
+        status: finalPaymentStatus,
         transactionId: transactionId
       },
       subtotal: cart.subTotal,
@@ -140,42 +150,47 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
       totalAmount: cart.grandTotal,
       couponCode: cart.couponCode,
       couponId: cart.couponId,
-      status: isPaid ? 'Processing' : 'Pending',
+      status: finalOrderStatus,
       timeline: [
-        { status: isPaid ? 'Processing' : 'Pending', comment: isPaid ? `Order placed. Payment ID: ${transactionId || 'Wallet'}` : 'Order placed successfully' }
+        { status: isFailedOrder 
+        ? `Payment Failed ` 
+        : (isPaid ? `Order placed. Payment ID: ${transactionId || 'Wallet'}` : 'Order placed successfully') }
       ]
     });
 
     await newOrder.save();
-    if (isPaid) {
-      let txnIdToSave = transactionId
-      if (paymentMethod === 'wallet') {
-        user.walletBalance -= cart.grandTotal
-        await user.save()
-        txnIdToSave = `WAL-${Date.now()}`
-      }
+    if (!isFailedOrder) {
+      if (paymentStatus === 'paid') {
+        let txnIdToSave = transactionId;
 
-      const newTransaction = new Transaction({
-        user: userId,
-        order: newOrder._id,
-        paymentId: txnIdToSave,
-        amount: newOrder.totalAmount,
-        transactionType: 'Debit',
-        status: 'Success',
-        method: paymentMethod,
-        description: `payment for ${purchasedProduct}`
-      })
-      await newTransaction.save()
+        if (paymentMethod === 'wallet') {
+          user.walletBalance -= cart.grandTotal;
+          await user.save();
+          txnIdToSave = `WAL-${Date.now()}`;
+        }
+        const newTransaction = new Transaction({
+          user: userId,
+          order: newOrder._id,
+          paymentId: txnIdToSave,
+          amount: newOrder.totalAmount,
+          transactionType: 'Debit',
+          status: 'Success',
+          method: paymentMethod,
+          description: `payment for Order #${newOrder.orderId}`
+        });
+        await newTransaction.save();
+      }
+      if (cart.couponId && Coupons) {
+        await Coupons.findByIdAndUpdate(cart.couponId, { $inc: { usedCount: 1 } });
+      }
+      await Cart.findOneAndDelete({ user: userId });
     }
-    if (cart.couponId && Coupons) {
-      await Coupons.findByIdAndUpdate(cart.couponId, { $inc: { usedCount: 1 } });
-    }
-    await Cart.findOneAndDelete({ user: userId });
     return newOrder;
-  } catch (error) {
+  
+   } catch (error) {
     console.log(" error found iajn : ", error)
     throw error
-  }
+   }
 };
 
 export const getUserOrders = async (userId) => {
@@ -290,7 +305,7 @@ export const cancelOrder = async (userId, orderId, reason, itemId = null) => {
   if (!item) throw new AppError('Item not found in this order', 404);
 
   if (item.itemStatus === 'Cancelled') throw new AppError('Item is already cancelled', 400);
-  if (['Delivered', 'Shipped', 'Returned','Return Approved','Return Rejected'].includes(item.itemStatus)) {
+  if (['Delivered', 'Shipped', 'Returned', 'Return Approved', 'Return Rejected'].includes(item.itemStatus)) {
     throw new AppError('Cannot cancel item at this stage', 400);
   }
 

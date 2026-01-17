@@ -7,4 +7,4 @@ const router = express.Router()
 
 router.post('/create-payment',protect, createRazorPayOrderId)
 router.post('/place-order-online', protect , placeOnlineOrder)
-export default router
+export default router          

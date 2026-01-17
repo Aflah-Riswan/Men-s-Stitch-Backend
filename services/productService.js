@@ -178,6 +178,11 @@ export const getProductByIdHomeService = async (id) => {
   return { success: true, product, relatedProducts };
 };
 
+// Helper to safely escape special regex characters (prevents crashes)
+function escapeRegex(text) {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+}
+
 export const getProductsByCategoryService = async (slug, queryParams) => {
   const {
     minPrice,
@@ -190,11 +195,13 @@ export const getProductsByCategoryService = async (slug, queryParams) => {
     ...dynamicFilters
   } = queryParams;
 
+  // 1. Initialize Filter
   let filter = {
     isDeleted: false,
     isListed: true,
   };
 
+  // 2. Handle Category Slug
   const regexValue = new RegExp(`^${slug}$`, 'i')
   if (slug.toLowerCase() !== 'all') {
     const categoryDoc = await Category.findOne({
@@ -208,25 +215,82 @@ export const getProductsByCategoryService = async (slug, queryParams) => {
     filter.mainCategory = categoryDoc._id;
   }
 
+  // 3. Price Filter
   if (minPrice || maxPrice) {
     filter.salePrice = {};
     if (minPrice) filter.salePrice.$gte = Number(minPrice);
     if (maxPrice) filter.salePrice.$lte = Number(maxPrice);
   }
 
+  // 4. Size Filter (Uses $or)
+  // Note: We use $and later to safely combine this with Search if needed
+  let sizeFilter = null;
   if (sizes) {
     const sizeArray = sizes.split(',');
-    filter.$or = sizeArray.map(size => ({
-      [`variants.stock.${size.toUpperCase()}`]: { $gt: 0 }
-    }));
+    sizeFilter = {
+      $or: sizeArray.map(size => ({
+        [`variants.stock.${size.toUpperCase()}`]: { $gt: 0 }
+      }))
+    };
   }
 
+  // ---------------------------------------------------------
+  // 🔍 5. SMART FUZZY SEARCH LOGIC
+  // ---------------------------------------------------------
+  let searchFilter = null;
   
   if (search) {
-   
-    filter.productName = { $regex: search, $options: 'i' };
+    const cleanSearch = search.trim();
+    
+    // A. Singularize: Remove trailing 's' (e.g., "shirts" -> "shirt")
+    // Exception: Don't remove if word ends in 'ss' (like "dress")
+    let baseTerm = cleanSearch;
+    if (baseTerm.length > 3 && baseTerm.toLowerCase().endsWith('s') && !baseTerm.toLowerCase().endsWith('ss')) {
+      baseTerm = baseTerm.slice(0, -1);
+    }
+
+    // B. Create Fuzzy Pattern
+    // Split "tshirt" -> ['t','s','h','i','r','t']
+    // Join with [\s-]* -> Matches "t-shirt", "t shirt", "tshirt"
+    const fuzzyPattern = baseTerm
+      .split('')
+      .map(char => escapeRegex(char))
+      .join('[\\s-]*');
+
+    // C. Final Regex: Add "s?" at the end to match singular OR plural in DB
+    const finalRegex = new RegExp(fuzzyPattern + "s?", 'i');
+    
+    // D. Apply to productName
+    searchFilter = { productName: { $regex: finalRegex } };
+    
+    // OPTIONAL: If you want to search Description too, use this instead:
+    /*
+    searchFilter = {
+      $or: [
+        { productName: { $regex: finalRegex } },
+        { description: { $regex: finalRegex } }
+      ]
+    };
+    */
   }
 
+  // ---------------------------------------------------------
+  // 6. Combine Filters Safely
+  // ---------------------------------------------------------
+  
+  // Since both 'sizes' and 'search' might want to use $or, 
+  // we push them into a top-level $and array if both exist.
+  if (sizeFilter || searchFilter) {
+    const andConditions = [];
+    if (sizeFilter) andConditions.push(sizeFilter);
+    if (searchFilter) andConditions.push(searchFilter);
+    
+    if (andConditions.length > 0) {
+      filter.$and = andConditions;
+    }
+  }
+
+  // 7. Dynamic Attributes Filter
   Object.keys(dynamicFilters).forEach(key => {
     if (key.startsWith('attr_')) {
       const actualAttributeName = key.replace('attr_', '');
@@ -245,40 +309,28 @@ export const getProductsByCategoryService = async (slug, queryParams) => {
     }
   });
 
-  
+  // 8. Sorting
   let sortOptions = { createdAt: -1 }; 
   if (sort) {
     switch (sort) {
-      case 'price_low_high':
-        sortOptions = { salePrice: 1 };
-        break;
-      case 'price_high_low':
-        sortOptions = { salePrice: -1 };
-        break;
-      case 'newest':
-        sortOptions = { createdAt: -1 };
-        break;
-      case 'oldest':
-        sortOptions = { createdAt: 1 };
-        break;
-      case 'a_z':
-        sortOptions = { productName: 1 }; 
-        break;
-      case 'z_a':
-        sortOptions = { productName: -1 };
-        break;
-      default:
-        sortOptions = { createdAt: -1 };
+      case 'price_low_high': sortOptions = { salePrice: 1 }; break;
+      case 'price_high_low': sortOptions = { salePrice: -1 }; break;
+      case 'newest': sortOptions = { createdAt: -1 }; break;
+      case 'oldest': sortOptions = { createdAt: 1 }; break;
+      case 'a_z': sortOptions = { productName: 1 }; break;
+      case 'z_a': sortOptions = { productName: -1 }; break;
+      default: sortOptions = { createdAt: -1 };
     }
   }
-  
 
+  // 9. Pagination
   const pageNum = Number(page);
   const limitNum = Number(limit);
   const skip = (pageNum - 1) * limitNum;
 
   console.log("Final MongoDB Filter:", JSON.stringify(filter, null, 2));
 
+  // 10. Execute Query
   const products = await Products.find(filter)
     .sort(sortOptions) 
     .skip(skip)
