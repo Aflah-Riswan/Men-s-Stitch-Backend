@@ -3,13 +3,15 @@ import * as orderService from '../services/orderServices.js';
 export const placeOrder = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const { addressId, paymentMethod , trasancationId , paymentStatus } = req.body;
+    const { addressId, paymentMethod , trasacationId , paymentStatus } = req.body;
+
+    console.log(" payment status :  ",paymentStatus)
 
     if (!addressId || !paymentMethod) {
       return res.status(400).json({ success: false, message: "Address and Payment Method are required" });
     }
 
-    const order = await orderService.placeOrder(userId, addressId, paymentMethod ,trasancationId, paymentStatus );
+    const order = await orderService.placeOrder(userId, addressId, paymentMethod ,trasacationId, paymentStatus );
 
     res.status(201).json({
       success: true,
@@ -147,6 +149,21 @@ export const returnOrderItem = async (req, res, next) => {
       success: true,
       message: 'Return request submitted successfully',
       order: updatedOrder
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteOrder = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const userId = req.user._id;
+    await orderService.deleteFailedOrder(userId, orderId);
+
+    res.status(200).json({ 
+      success: true, 
+      message: "Order deleted successfully" 
     });
   } catch (error) {
     next(error);

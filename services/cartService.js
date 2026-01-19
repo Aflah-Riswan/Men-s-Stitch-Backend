@@ -169,15 +169,30 @@ export const addToCart = async (userId, cartData) => {
 
 export const updateQuantity = async (userId, itemId, action) => {
   const cart = await Cart.findOne({ user: userId });
-  if (!cart) throw new AppError('Cart not found', 404);
-
+  if (!cart) {
+    throw new AppError('Cart not found', 404);
+  }
   const item = cart.items.id(itemId);
-  if (!item) throw new AppError('Item not found', 404);
-
+  if (!item) {
+    throw new AppError('Item not found', 404);
+  }
+  
   const product = await Product.findById(item.productId);
+  if (!product) {
+    throw new AppError('Product not found', 404);
+  }
+   
+  const existingVariantIds = product.variants.map(v => v._id.toString());
   const variant = product.variants.id(item.variantId);
-  const stock = variant.stock[item.size];
 
+  if (!variant) {
+    cart.items.pull(itemId);
+    await cart.save();  
+    throw new AppError('This option is no longer available (Variant Mismatch). Item removed.', 404);
+  }
+ 
+  
+  const stock = variant.stock[item.size];
   if (action === 'increment') {
     if (item.quantity >= MAX_QTY_PER_ITEM) throw new AppError(`Max limit of ${MAX_QTY_PER_ITEM} reached`, 400);
     if (item.quantity >= stock) throw new AppError('Stock limit reached', 400);
@@ -190,9 +205,10 @@ export const updateQuantity = async (userId, itemId, action) => {
 
   recalculateCart(cart);
   await cart.save();
+  console.log("--- UPDATE QUANTITY SUCCESS ---");
+  
   return await getCartItems(userId);
 };
-
 
 export const removeItem = async (userId, itemId) => {
   const cart = await Cart.findOne({ user: userId });

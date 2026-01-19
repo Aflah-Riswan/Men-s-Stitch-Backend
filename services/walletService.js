@@ -13,7 +13,8 @@ export const getMyWallet = async (userId) => {
    $or : [
     { method : 'wallet' },
     { method : 'Wallet' },
-    {method : 'wallet' , transactionType : 'Credit'}
+    {method : 'wallet' , transactionType : 'Credit'},
+    {method :'Razorpay',transactionType : 'Credit'}
    ]
 }).sort({ createdAt: -1 });
   if (!transaction) throw new AppError('Transaction Details is not found', 404, 'TRANSACTION DETAILS IS NOT FOUND')

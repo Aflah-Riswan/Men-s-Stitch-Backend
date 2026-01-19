@@ -10,7 +10,8 @@ import {
     placeOrder, 
     updateOrderStatus, 
     updateOrderItemStatus, 
-    returnOrderItem 
+    returnOrderItem, 
+    deleteOrder
 } from '../controllers/orderController.js';
 
 const router = express.Router();
@@ -25,6 +26,7 @@ router.put('/:orderId/items/:itemId/return', protect, returnOrderItem);
 router.put('/:orderId/cancel', protect, cancelOrder);
 // router.get('/admin/:orderId', protect, admin, orderDetailsAdmin);
 router.get('/:orderId', protect, getOrderDetails);
+router.delete('/:orderId', protect, deleteOrder);
 // router.put('/update-status/:orderId', protect, admin, updateOrderStatus);
 // router.put('/update-item-status/:orderId', protect, admin, updateOrderItemStatus);
 

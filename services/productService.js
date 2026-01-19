@@ -97,27 +97,79 @@ export const productToggleIsList = async (id) => {
   return { success: true, updatedData: response };
 };
 
-export const updateProductService = async (id, data) => {
-  const { originalPrice, salePrice, productOffer, mainCategory } = data
-  
-  const priceDetails = await calculateBestPrice(originalPrice, salePrice, productOffer, mainCategory)
-  const finalData = {
-    ...data,
-    salePrice: priceDetails.salePrice,
-    activeOfferSource: priceDetails.activeOfferSource
-  }
-  const updatedProduct = await Products.findByIdAndUpdate(
-    { _id: id },
-    { $set: finalData },
-    { new: true }
-  );
 
-  if (!updatedProduct) {
+
+export const updateProductService = async (id, data) => {
+  // 1. Fetch Existing Product
+  const product = await Products.findById(id);
+  if (!product) {
     throw new AppError('Product not found', 404, 'PRODUCT_NOT_FOUND');
   }
 
+  // 2. Prepare Data & Calculate Price
+  const originalPrice =  data.originalPrice 
+  const salePrice =  data.salePrice 
+  const productOffer = data.productOffer 
+  const mainCategory = data.mainCategory 
+
+  const priceDetails = await calculateBestPrice(originalPrice, salePrice, productOffer, mainCategory);
+
+  // 3. Update Top-Level Fields
+  Object.keys(data).forEach((key) => {
+    if (key !== 'variants') {
+       product[key] = data[key];
+    }
+  });
+
+  product.salePrice = priceDetails.salePrice;
+  product.activeOfferSource = priceDetails.activeOfferSource;
+
+  // 4. ROBUST VARIANT UPDATE (The Fix)
+  if (data.variants && Array.isArray(data.variants)) {
+    
+    // A. Identify IDs to keep
+    const incomingIds = new Set(
+      data.variants.filter(v => v._id).map(v => v._id.toString())
+    );
+
+    // B. Remove deleted variants
+    for (let i = product.variants.length - 1; i >= 0; i--) {
+      const existingVariant = product.variants[i];
+      const isColorInNewData = data.variants.some(v => v.colorCode === existingVariant.colorCode);
+      
+      if (!incomingIds.has(existingVariant._id.toString()) && !isColorInNewData) {
+        product.variants.splice(i, 1);
+      }
+    }
+
+    // C. Update or Add (With Color Check!)
+    data.variants.forEach(incoming => {
+      let targetVariant = null;
+
+      // Try finding by ID first
+      if (incoming._id) {
+        targetVariant = product.variants.id(incoming._id);
+      }
+
+      if (!targetVariant) {
+        targetVariant = product.variants.find(v => v.colorCode === incoming.colorCode);
+      }
+
+      if (targetVariant) {
+        targetVariant.productColor = incoming.productColor;
+        targetVariant.colorCode = incoming.colorCode;
+        targetVariant.variantImages = incoming.variantImages;
+        targetVariant.stock = incoming.stock;
+      } else {
+        product.variants.push(incoming);
+      }
+    });
+  }
+
+  const updatedProduct = await product.save();
   return { success: true, updatedProduct };
 };
+
 
 export const deleteProductService = async (id) => {
   const response = await Products.findByIdAndUpdate(
@@ -178,7 +230,6 @@ export const getProductByIdHomeService = async (id) => {
   return { success: true, product, relatedProducts };
 };
 
-// Helper to safely escape special regex characters (prevents crashes)
 function escapeRegex(text) {
   return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
 }
@@ -195,13 +246,11 @@ export const getProductsByCategoryService = async (slug, queryParams) => {
     ...dynamicFilters
   } = queryParams;
 
-  // 1. Initialize Filter
   let filter = {
-    isDeleted: false,
-    isListed: true,
+    isListed:true,
+    isDeleted : false
   };
 
-  // 2. Handle Category Slug
   const regexValue = new RegExp(`^${slug}$`, 'i')
   if (slug.toLowerCase() !== 'all') {
     const categoryDoc = await Category.findOne({
@@ -221,9 +270,6 @@ export const getProductsByCategoryService = async (slug, queryParams) => {
     if (minPrice) filter.salePrice.$gte = Number(minPrice);
     if (maxPrice) filter.salePrice.$lte = Number(maxPrice);
   }
-
-  // 4. Size Filter (Uses $or)
-  // Note: We use $and later to safely combine this with Search if needed
   let sizeFilter = null;
   if (sizes) {
     const sizeArray = sizes.split(',');
@@ -234,52 +280,35 @@ export const getProductsByCategoryService = async (slug, queryParams) => {
     };
   }
 
-  // ---------------------------------------------------------
-  // 🔍 5. SMART FUZZY SEARCH LOGIC
-  // ---------------------------------------------------------
   let searchFilter = null;
   
   if (search) {
     const cleanSearch = search.trim();
-    
-    // A. Singularize: Remove trailing 's' (e.g., "shirts" -> "shirt")
-    // Exception: Don't remove if word ends in 'ss' (like "dress")
+
     let baseTerm = cleanSearch;
     if (baseTerm.length > 3 && baseTerm.toLowerCase().endsWith('s') && !baseTerm.toLowerCase().endsWith('ss')) {
       baseTerm = baseTerm.slice(0, -1);
     }
-
-    // B. Create Fuzzy Pattern
-    // Split "tshirt" -> ['t','s','h','i','r','t']
-    // Join with [\s-]* -> Matches "t-shirt", "t shirt", "tshirt"
     const fuzzyPattern = baseTerm
       .split('')
       .map(char => escapeRegex(char))
       .join('[\\s-]*');
 
-    // C. Final Regex: Add "s?" at the end to match singular OR plural in DB
     const finalRegex = new RegExp(fuzzyPattern + "s?", 'i');
     
-    // D. Apply to productName
     searchFilter = { productName: { $regex: finalRegex } };
     
-    // OPTIONAL: If you want to search Description too, use this instead:
-    /*
-    searchFilter = {
-      $or: [
-        { productName: { $regex: finalRegex } },
-        { description: { $regex: finalRegex } }
-      ]
-    };
-    */
+
+  
+    // searchFilter = {
+    //   $or: [
+    //     { productName: { $regex: finalRegex } },
+    //     { description: { $regex: finalRegex } }
+    //   ]
+    // };
+    
   }
 
-  // ---------------------------------------------------------
-  // 6. Combine Filters Safely
-  // ---------------------------------------------------------
-  
-  // Since both 'sizes' and 'search' might want to use $or, 
-  // we push them into a top-level $and array if both exist.
   if (sizeFilter || searchFilter) {
     const andConditions = [];
     if (sizeFilter) andConditions.push(sizeFilter);
