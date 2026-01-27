@@ -19,6 +19,16 @@ export const addCouponService = async (data) => {
 
 
 export const getCouponService = async (data) => {
+
+  await Coupons.updateMany(
+    { 
+      expiryDate : { $lt : new Date()} ,
+      isActive : true
+    },
+    {
+      $set : { isActive : false }
+    }
+)
   const {
     page = Number(data.page) || 1,
     limit = Number(data.limit) || 5,

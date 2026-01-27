@@ -15,13 +15,13 @@ export const addCoupon = async (req, res, next) => {
 }
 export const getCoupons = async (req, res, next) => {
   try {
-    const { page,
-      discount,
-      offerLimit,
-      sort,
-      status,
-      search,
-      expiryDate } = req.query
+    const { page=1,
+      discount=0,
+      offerLimit=0,
+      sort='',
+      status='active',
+      search='',
+      expiryDate} = req.query
     const response = await couponService.getCouponService(
       {
         page,
