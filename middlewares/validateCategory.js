@@ -10,23 +10,23 @@ export const validateCategory = (req, res, next) => {
 
     discountType: joi.string().valid('Flat', 'Percentage').required(),
 
-    // 1. CONDITIONAL CATEGORY OFFER
+   
     categoryOffer: joi.number().min(0).required()
       .when('discountType', {
         is: 'Percentage',
         then: joi.number().max(100).messages({ 'number.max': 'Percentage discount cannot exceed 100%' }),
-        otherwise: joi.number() // No max limit for Flat amount
+        otherwise: joi.number()  
       })
       .messages({
         'number.base': 'Offer must be a number',
         'number.min': 'Offer cannot be negative'
       }),
 
-    // 2. CONDITIONAL MAX REDEEMABLE
+   
     maxRedeemable: joi.number()
       .when('discountType', {
         is: 'Flat',
-        then: joi.allow(null).optional(), // Allow null for Flat
+        then: joi.allow(null).optional(),
         otherwise: joi.number().min(1).required().messages({ 
             'any.required': 'Max redeemable limit is required for Percentage offers' 
         })
@@ -37,8 +37,8 @@ export const validateCategory = (req, res, next) => {
     }),
 
     parentCategory: joi.alternatives().try(
-      joi.string().hex().length(24), // Valid ObjectId
-      joi.string().valid('none', 'None', ''), // Handle frontend strings
+      joi.string().hex().length(24), 
+      joi.string().valid('none', 'None', ''), 
       joi.allow(null)
     ).optional(),
 

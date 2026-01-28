@@ -7,7 +7,7 @@ import { placeOrder } from "./orderServices.js";
 const verifyPaymentSignature = (razorpay_order_id, razorpay_payment_id, razorpay_signature) => {
   console.log("Secret Key Exists:", !!process.env.RAZORPAY_SECRET_KEY);
 
-  // 2. Log the inputs
+ 
   const body = razorpay_order_id + '|' + razorpay_payment_id;
   console.log("Generated Body:", body);
   console.log("Received Signature:", razorpay_signature);
@@ -19,7 +19,7 @@ const verifyPaymentSignature = (razorpay_order_id, razorpay_payment_id, razorpay
 
   console.log("Calculated Signature:", expectedSignature);
 
-  // 3. Compare
+
   const isMatch = expectedSignature === razorpay_signature;
   console.log("Signature Match:", isMatch);
 

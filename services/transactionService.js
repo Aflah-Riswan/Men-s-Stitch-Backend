@@ -19,13 +19,13 @@ export const getTransactions = async (data) => {
   // 2. Initialize Filter
   const filter = {}; 
 
-  // 3. Apply Filters (Type & Method)
+  // 3. Apply Filters 
   if (type && type !== 'All') {
-    filter.transactionType = type; // 'Credit' or 'Debit'
+    filter.transactionType = type; 
   }
 
   if (method && method !== 'All') {
-    filter.method = method; // 'Wallet' or 'Razorpay'
+    filter.method = method; 
   }
 
   // 4. Apply Search (Payment ID OR User Name/Email)
@@ -51,20 +51,20 @@ export const getTransactions = async (data) => {
   }
 
   // 5. Apply Sorting
-  let sortOptions = { createdAt: -1 }; // Default: Newest first
+  let sortOptions = { createdAt: -1 }; 
   
   if (sort === 'oldest') sortOptions = { createdAt: 1 };
   if (sort === 'amount_high') sortOptions = { amount: -1 };
   if (sort === 'amount_low') sortOptions = { amount: 1 };
 
-  // 6. Execute Query
+
   const transactions = await Transaction.find(filter)
-    .populate('user', 'firstName email profilePic') // Get user details
+    .populate('user', 'firstName email profilePic') 
     .sort(sortOptions)
     .skip(skip)
     .limit(limitNum);
 
-  // 7. Get Total Count for Pagination
+ 
   const totalCount = await Transaction.countDocuments(filter);
 
   return {

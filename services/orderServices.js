@@ -58,8 +58,8 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
     try { Coupons = getModel('Coupons'); } catch (e) { Coupons = null; }
 
     const cart = await Cart.findOne({ user: userId }).populate('items.productId');
-    
-    // Check 1: Empty Cart
+
+ 
     if (!cart || cart.items.length === 0) {
       throw new AppError("Cart is empty", 400);
     }
@@ -72,7 +72,7 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
 
     const isFailedOrder = paymentStatus === 'failed';
 
-    // Check 2: Wallet Balance (Skip if failed)
+   
     if (paymentMethod === 'wallet' && !isFailedOrder) {
       if (user.walletBalance < cart.grandTotal) {
         throw new AppError("Insufficient wallet balance", 400, 'INSUFFIECIENT_BALANCE');
@@ -83,19 +83,17 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
 
     for (const item of cart.items) {
       const product = item.productId;
-      
-      //  FIX 1: Handle Missing Product gracefully for Failed Orders
+
       if (!product) {
-        if(isFailedOrder) continue; 
+        if (isFailedOrder) continue;
         throw new AppError(`Product not found`, 404);
       }
 
       const variant = product.variants.id(item.variantId);
 
-      // FIX 2: Handle Missing Variant (THE MAIN FIX)
+     
       if (!variant) {
         if (isFailedOrder) {
-          // If payment failed, create a placeholder item so the order saves
           orderItems.push({
             productId: product._id,
             name: product.productName,
@@ -105,16 +103,16 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
             color: "Unknown",
             size: item.size,
             itemStatus: 'Cancelled',
-            variantId: item.variantId // Keep the old ID
+            variantId: item.variantId
           });
-          continue; // Move to next item
+          continue; 
         } else {
-          // If Real Order, throw error
+          
           throw new AppError(`Variant not found for ${product.productName}`, 404);
         }
       }
 
-      // ✅ FIX 3: Only check stock if it is NOT a failed order
+      
       if (!isFailedOrder) {
         const currentStock = variant.stock[item.size] || 0;
         if (currentStock < item.quantity) {
@@ -146,14 +144,14 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
     }
 
     const orderId = `ORD-${uuidv4().slice(0, 8).toUpperCase()}`;
-    // Logic for Paid Status
+  
     const isPaid = (paymentMethod === 'wallet') || (paymentMethod === 'razorpay' && transactionId);
-    
+
     let finalOrderStatus = 'Pending';
     let finalPaymentStatus = 'pending';
 
     if (isFailedOrder) {
-      finalOrderStatus = 'Failed'; // This matches your Model enum
+      finalOrderStatus = 'Failed'; 
       finalPaymentStatus = 'failed';
     } else if (isPaid) {
       finalOrderStatus = 'Processing';
@@ -186,18 +184,18 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
       couponId: cart.couponId,
       status: finalOrderStatus,
       timeline: [
-        { 
-          status: isFailedOrder ? 'Failed' : (isPaid ? 'Processing' : 'Pending'), // Match Enum
-          comment: isFailedOrder 
-            ? `Payment Failed` 
-            : (isPaid ? `Order placed. Payment ID: ${transactionId || 'Wallet'}` : 'Order placed successfully') 
+        {
+          status: isFailedOrder ? 'Failed' : (isPaid ? 'Processing' : 'Pending'), 
+          comment: isFailedOrder
+            ? `Payment Failed`
+            : (isPaid ? `Order placed. Payment ID: ${transactionId || 'Wallet'}` : 'Order placed successfully')
         }
       ]
     });
 
     await newOrder.save();
 
-    // Cleanup Cart only if NOT failed
+ 
     if (!isFailedOrder) {
       if (paymentStatus === 'paid') {
         let txnIdToSave = transactionId;
@@ -255,7 +253,6 @@ export const cancelFullOrder = async (userId, orderId, reason) => {
   const order = await Order.findOne({ _id: orderId, user: userId });
   if (!order) throw new AppError('Order not found', 404);
 
-  // 1. Check Main Order Status
   if (order.status === 'Cancelled') throw new AppError('Order is already cancelled', 400);
   if (['Delivered', 'Shipped', 'Returned'].includes(order.status)) {
     throw new AppError('Cannot cancel order at this stage', 400);
@@ -272,11 +269,10 @@ export const cancelFullOrder = async (userId, orderId, reason) => {
     );
   }
 
-  // 3. Update Order Status
   order.status = 'Cancelled';
   order.cancellationReason = reason || 'Cancelled by user';
 
-  // 4. Loop through ALL items to restock
+  
   for (const item of order.items) {
     if (item.itemStatus !== 'Cancelled') {
       item.itemStatus = 'Cancelled';
@@ -293,7 +289,7 @@ export const cancelFullOrder = async (userId, orderId, reason) => {
     }
   }
 
-  // 5. Process Full Refund (Grand Total)
+  
   if (order.payment.status === 'paid') {
     const refundAmount = order.totalAmount;
 
@@ -313,7 +309,7 @@ export const cancelFullOrder = async (userId, orderId, reason) => {
     order.payment.status = 'refunded';
   }
 
-  // 6. Update Timeline
+
   order.timeline.push({
     status: 'Cancelled',
     comment: `Entire order cancelled by user. Reason: ${reason}`,
@@ -569,10 +565,12 @@ export const updateOrderStatus = async (orderId, status) => {
 
 export const updateOrderItemStatus = async (orderId, itemId, status) => {
   const Order = getModel('Order');
+  const User = getModel('User');         
+  const Transaction = getModel('Transaction'); 
+  const Products = getModel('Products');    
+
   const order = await Order.findById(orderId).populate('user');
-
   if (!order) throw new AppError('Order is not found', 404, 'ORDER_IS_NOT_FOUND');
-
 
   const item = order.items.id(itemId);
   if (!item) throw new AppError('Ordered item is not found', 404, 'ORDERED_ITEM_IS_NOT_FOUND');
@@ -586,7 +584,44 @@ export const updateOrderItemStatus = async (orderId, itemId, status) => {
       'INVALID_STATUS_TRANSITION'
     );
   }
+
   const oldStatus = item.itemStatus;
+  
+  if (status === 'Return Approved') {
+   
+    if (order.payment.status === 'paid') {
+      const refundAmount = item.price * item.quantity;
+      await User.findByIdAndUpdate(order.user._id, { 
+        $inc: { walletBalance: refundAmount } 
+      });
+
+      await Transaction.create({
+        user: order.user._id,
+        order: order._id,
+        paymentId: `REF-RET-${Date.now()}`,
+        amount: refundAmount,
+        transactionType: 'Credit',
+        status: 'Success',
+        method: 'Wallet',
+        description: `Refund for Returned Item: ${item.name}`
+      });
+    }
+
+    const product = await Products.findById(item.productId);
+    if (product) {
+      const variant = product.variants.id(item.variantId);
+      if (variant) {
+       
+        const stockPath = `variants.$.stock.${item.size}`;
+        await Products.findOneAndUpdate(
+          { _id: product._id, "variants._id": item.variantId },
+          { $inc: { [stockPath]: item.quantity } }
+        );
+      }
+    }
+  }
+
+
   item.itemStatus = status;
 
   order.timeline.push({
@@ -595,20 +630,21 @@ export const updateOrderItemStatus = async (orderId, itemId, status) => {
     date: new Date()
   });
 
+  
   const allCompleted = order.items.every(i =>
-    ['Returned', 'Cancelled'].includes(i.itemStatus)
+    ['Returned', 'Cancelled', 'Return Approved'].includes(i.itemStatus)
   );
 
   const allDelivered = order.items.every(i => i.itemStatus === 'Delivered');
 
   if (allCompleted) {
-    order.status = 'Returned';
+    order.status = 'Returned'; 
   }
 
   if (allDelivered) {
-    order.status = 'Delivered'
-    order.payment.status = 'paid'
-    await processReferralReward(order.user)
+    order.status = 'Delivered';
+    order.payment.status = 'paid';
+    await processReferralReward(order.user);
   }
 
   await order.save();
@@ -616,11 +652,11 @@ export const updateOrderItemStatus = async (orderId, itemId, status) => {
 };
 
 export const deleteFailedOrder = async (userId, orderId) => {
-  const Order = getModel('Order'); 
-  const order = await Order.findOneAndDelete({ 
-    _id: orderId, 
-    user: userId, 
-    status: { $in: ['Payment Failed', 'Failed'] } 
+  const Order = getModel('Order');
+  const order = await Order.findOneAndDelete({
+    _id: orderId,
+    user: userId,
+    status: { $in: ['Payment Failed', 'Failed'] }
   });
 
   if (!order) {

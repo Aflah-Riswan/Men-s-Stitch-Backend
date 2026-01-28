@@ -93,7 +93,7 @@ export const generateSalesReport = async (query) => {
     },
   ]);
 
-  // 2. Fetch Order List (Updated to include Cancelled/Returned)
+
   const orders = await Order.find({
     status: { 
       $in: [

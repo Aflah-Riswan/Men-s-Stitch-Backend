@@ -121,8 +121,8 @@ export const getDashboardStatsService = async () => {
   const salesData = salesDataRaw.map(item => {
     const d = new Date(item._id);
     return {
-      name: days[d.getDay()], // "Mon"
-      date: item._id,         // "2023-10-01"
+      name: days[d.getDay()], 
+      date: item._id,        
       sales: item.sales
     };
   });
@@ -138,7 +138,7 @@ export const getDashboardStatsService = async () => {
     {
       title: 'Total Orders',
       value: totalOrd,
-      change: '+0%', // Placeholder logic
+      change: '+0%',
       isPositive: true,
     },
     {
