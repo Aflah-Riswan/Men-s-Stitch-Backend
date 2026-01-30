@@ -1,33 +1,30 @@
+import Product from "../models/products.js";
 import User from '../models/users.js';
 import WishList from '../models/wishlist.js';
 import AppError from '../utils/appError.js';
 
-export const addToWishList = async (productId, userId) => {
+export const addToWishList = async (wishListData, userId) => {
   try {
     const user = await User.findOne({ _id: userId })
     if (user.isBlocked) {
       throw new AppError('You are blocked ', 403, 'USER-IS_BLOCKED')
     }
-    let wishlist = await WishList.findOne({ user: userId });
-
-    if (!wishlist) {
-      wishlist = new WishList({
-        user: userId,
-        products: [{ productId }]
-      });
-      await wishlist.save();
-      return { success: true, message: 'Item added successfully' };
-    } else {
-      const itemExists = wishlist.products.some((item) => item.productId.toString() === productId);
-
-      if (itemExists) {
-        return { success: false, message: 'Item already in wishlist' };
-      }
-
-      wishlist.products.push({ productId });
-      await wishlist.save();
-      return { success: true, message: 'Item added successfully' };
+    let wishList = await WishList.findOne({ user: userId });
+    if(!wishList){
+      wishList =  new WishList({user: userId ,products:[]})
     }
+    let { quantity  , colorCode ,productId , variantId , size } = wishListData
+    const product = await Product.findById(productId)
+    if(!product) return { success : false , message : 'product is not existed '}
+    const isVariantExist = product.variants.id(variantId)
+    if(!isVariantExist) return { success : false , message : ' variant is not existed'}
+    const availableStock = isVariantExist ?.stock[size]
+    if(availableStock === undefined) return { success : false , message : 'selected stock is out of stock'} 
+    if(availableStock < quantity) return { success : false , message : 'stock limit is exceed'}
+    wishList.products.push({productId , variantId , colorCode  , quantity , size })
+    await wishList.save()
+      
+    
   } catch (error) {
     console.error("Error in addToWishList:", error);
     throw error;

@@ -3,9 +3,9 @@ import * as wishListService from '../services/wishListServices.js'
 
 export const addToWishList = async (req, res, next) => {
   try {
-    const { productId } = req.body
+    const wishListData = req.body.data
     const userId = req.user._id
-    const response = await wishListService.addToWishList(productId, userId)
+    const response = await wishListService.addToWishList(wishListData, userId)
     return res.json(response)
   } catch (error) {
     next(error)
