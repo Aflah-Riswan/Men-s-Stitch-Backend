@@ -1,66 +1,57 @@
-
 import Order from "../models/order.js";
 import Product from "../models/products.js";
 import User from "../models/users.js";
 
-export const getDashboardStatsService = async () => {
-  // 1. Date Calculations
+export const getDashboardStatsService = async (filter = 'monthly') => {
   const today = new Date();
-  const firstDayCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const firstDayLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const lastDayLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
-  
-  // Set to 7 days ago (reset time to 00:00:00 for accurate chart)
-  const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(today.getDate() - 7);
-  sevenDaysAgo.setHours(0, 0, 0, 0);
+  let startDate;
+  let groupingFormat;
 
-  // --- 2. DEFINE QUERIES ---
+  // 1. Dynamic Filter Logic
+  switch (filter) {
+    case 'weekly':
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() - 7);
+      groupingFormat = "%Y-%m-%d";
+      break;
+    case 'yearly':
+      startDate = new Date(today.getFullYear(), 0, 1);
+      groupingFormat = "%Y-%m";
+      break;
+    case 'monthly':
+    default:
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      groupingFormat = "%Y-%m-%d";
+      break;
+  }
 
-  // A. Total Revenue (Lifetime)
-  const totalRevenuePromise = Order.aggregate([
-    { $match: { status: { $ne: "Cancelled" } } },
-    { $group: { _id: null, total: { $sum: "$totalAmount" } } }
-  ]);
 
-  // B. Counts (Lifetime)
-  const totalOrdersPromise = Order.countDocuments({});
-  const totalProductsPromise = Product.countDocuments({ isDeleted: false });
-  const totalUsersPromise = User.countDocuments({ isBlocked: false });
-
-  // C. Monthly Stats (For Growth %)
-  const currentMonthRevenuePromise = Order.aggregate([
-    { $match: { 
-        status: { $ne: "Cancelled" },
-        createdAt: { $gte: firstDayCurrentMonth } 
-    }},
-    { $group: { _id: null, total: { $sum: "$totalAmount" } } }
-  ]);
-
-  const lastMonthRevenuePromise = Order.aggregate([
-    { $match: { 
-        status: { $ne: "Cancelled" },
-        createdAt: { $gte: firstDayLastMonth, $lte: lastDayLastMonth } 
-    }},
-    { $group: { _id: null, total: { $sum: "$totalAmount" } } }
-  ]);
-
-  // D. Sales Chart Data (Last 7 Days)
+  // Sales Chart
   const salesChartPromise = Order.aggregate([
-    { $match: { 
-        status: { $ne: "Cancelled" },
-        createdAt: { $gte: sevenDaysAgo } 
-    }},
+    { $match: { status: { $ne: "Cancelled" }, createdAt: { $gte: startDate } } },
     { $group: {
-        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+        _id: { $dateToString: { format: groupingFormat, date: "$createdAt" } },
         sales: { $sum: "$totalAmount" }
     }},
     { $sort: { _id: 1 } }
   ]);
 
-  // E. Top Selling Products
+  // Dynamic Top Categories (Filtered by startDate)
+  const topCategoriesPromise = Order.aggregate([
+    { $match: { status: { $ne: "Cancelled" }, createdAt: { $gte: startDate } } },
+    { $unwind: "$items" },
+    { $lookup: { from: "products", localField: "items.productId", foreignField: "_id", as: "productDetails" } },
+    { $unwind: "$productDetails" },
+    { $lookup: { from: "categories", localField: "productDetails.mainCategory", foreignField: "_id", as: "categoryDetails" } },
+    { $unwind: "$categoryDetails" },
+    { $group: { _id: "$categoryDetails.categoryName", count: { $sum: "$items.quantity" } } },
+    { $sort: { count: -1 } },
+    { $limit: 10 }
+  ]);
+
+  // Dynamic Top Selling Products (Filtered by startDate)
   const topProductsPromise = Order.aggregate([
-    { $match: { status: { $ne: "Cancelled" } } },
+    { $match: { status: { $ne: "Cancelled" }, createdAt: { $gte: startDate } } },
     { $unwind: "$items" },
     { $group: {
         _id: "$items.productId", 
@@ -72,93 +63,41 @@ export const getDashboardStatsService = async () => {
     { $limit: 5 }
   ]);
 
-  // F. Recent Orders
+  // Live Activity (Always shows the 5 most recent overall)
   const recentOrdersPromise = Order.find()
-    .select('orderId totalAmount status createdAt user')
-    .populate('user', 'firstName email')
     .sort({ createdAt: -1 })
-    .limit(5);
-
+    .limit(5)
+    .populate('user', 'firstName')
+    .select('orderId totalAmount status createdAt user');
 
   // --- 3. EXECUTE PARALLEL QUERIES ---
   const [
-    totalRevData, 
-    totalOrd, 
-    totalProd, 
-    totalUsr,
-    currMonthRevData,
-    lastMonthRevData,
     salesDataRaw,
     topProducts,
+    topCategories,
+    totalOrd,
+    totalProd,
+    totalUsr,
     recentOrders
   ] = await Promise.all([
-    totalRevenuePromise,
-    totalOrdersPromise,
-    totalProductsPromise,
-    totalUsersPromise,
-    currentMonthRevenuePromise,
-    lastMonthRevenuePromise,
     salesChartPromise,
     topProductsPromise,
+    topCategoriesPromise,
+    Order.countDocuments({}),
+    Product.countDocuments({ isDeleted: false }),
+    User.countDocuments({ isBlocked: false }),
     recentOrdersPromise
   ]);
 
-  // --- 4. DATA PROCESSING & FORMATTING ---
-
-  // Calculate Revenue Growth
-  const currentRev = currMonthRevData[0]?.total || 0;
-  const lastRev = lastMonthRevData[0]?.total || 0;
-  
-  let growthPercent = 0;
-  if (lastRev > 0) {
-    growthPercent = ((currentRev - lastRev) / lastRev) * 100;
-  } else if (currentRev > 0) {
-    growthPercent = 100;
-  }
-
-  // Format Chart Data
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const salesData = salesDataRaw.map(item => {
-    const d = new Date(item._id);
-    return {
-      name: days[d.getDay()], 
-      date: item._id,        
-      sales: item.sales
-    };
-  });
-
-  // Construct Stats Array
-  const stats = [
-    {
-      title: 'Total Revenue',
-      value: totalRevData[0]?.total || 0,
-      change: growthPercent.toFixed(1) + '%',
-      isPositive: growthPercent >= 0,
-    },
-    {
-      title: 'Total Orders',
-      value: totalOrd,
-      change: '+0%',
-      isPositive: true,
-    },
-    {
-      title: 'Total Products',
-      value: totalProd,
-      change: '0%',
-      isPositive: true,
-    },
-    {
-      title: 'Total Users',
-      value: totalUsr,
-      change: '+5%',
-      isPositive: true,
-    }
-  ];
-
   return {
-    stats,
-    salesData,
+    stats: [
+        { title: 'Total Revenue', value: salesDataRaw.reduce((acc, curr) => acc + curr.sales, 0) },
+        { title: 'Orders in Period', value: totalOrd },
+        { title: 'Total Users', value: totalUsr }
+    ],
+    salesData: salesDataRaw,
     topProducts,
+    topCategories,
     recentOrders
   };
 };
