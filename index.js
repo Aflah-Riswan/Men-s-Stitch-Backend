@@ -28,7 +28,7 @@ console.log("index.js loaded");
 
 
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: ["https://mens-stitch.shop", "https://www.mens-stitch.shop"],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: [
