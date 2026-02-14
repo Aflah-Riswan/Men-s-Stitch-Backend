@@ -6,8 +6,8 @@ export const sendEmail = async (email, subject, htmlMessage) => {
     const transporter = nodemailer.createTransport({
       service: process.env.SERVICE,
       host: process.env.HOST,
-      port: 465,
-      secure: true, 
+      port: 587,
+      secure: false, 
       auth: {
         user: process.env.USER,
         pass: process.env.PASSWORD
