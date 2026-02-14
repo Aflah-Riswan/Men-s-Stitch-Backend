@@ -59,7 +59,7 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
 
     const cart = await Cart.findOne({ user: userId }).populate('items.productId');
 
- 
+
     if (!cart || cart.items.length === 0) {
       throw new AppError("Cart is empty", 400);
     }
@@ -72,7 +72,7 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
 
     const isFailedOrder = paymentStatus === 'failed';
 
-   
+
     if (paymentMethod === 'wallet' && !isFailedOrder) {
       if (user.walletBalance < cart.grandTotal) {
         throw new AppError("Insufficient wallet balance", 400, 'INSUFFIECIENT_BALANCE');
@@ -91,7 +91,7 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
 
       const variant = product.variants.id(item.variantId);
 
-     
+
       if (!variant) {
         if (isFailedOrder) {
           orderItems.push({
@@ -105,14 +105,14 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
             itemStatus: 'Cancelled',
             variantId: item.variantId
           });
-          continue; 
+          continue;
         } else {
-          
+
           throw new AppError(`Variant not found for ${product.productName}`, 404);
         }
       }
 
-      
+
       if (!isFailedOrder) {
         const currentStock = variant.stock[item.size] || 0;
         if (currentStock < item.quantity) {
@@ -144,14 +144,14 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
     }
 
     const orderId = `ORD-${uuidv4().slice(0, 8).toUpperCase()}`;
-  
+
     const isPaid = (paymentMethod === 'wallet') || (paymentMethod === 'razorpay' && transactionId);
 
     let finalOrderStatus = 'Pending';
     let finalPaymentStatus = 'pending';
 
     if (isFailedOrder) {
-      finalOrderStatus = 'Failed'; 
+      finalOrderStatus = 'Failed';
       finalPaymentStatus = 'failed';
     } else if (isPaid) {
       finalOrderStatus = 'Processing';
@@ -185,7 +185,7 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
       status: finalOrderStatus,
       timeline: [
         {
-          status: isFailedOrder ? 'Failed' : (isPaid ? 'Processing' : 'Pending'), 
+          status: isFailedOrder ? 'Failed' : (isPaid ? 'Processing' : 'Pending'),
           comment: isFailedOrder
             ? `Payment Failed`
             : (isPaid ? `Order placed. Payment ID: ${transactionId || 'Wallet'}` : 'Order placed successfully')
@@ -195,9 +195,9 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
 
     await newOrder.save();
 
- 
+
     if (!isFailedOrder) {
-      if (paymentStatus === 'paid') {
+      if (isPaid && !isFailedOrder) {
         let txnIdToSave = transactionId;
         if (paymentMethod === 'wallet') {
           user.walletBalance -= cart.grandTotal;
@@ -212,7 +212,7 @@ export const placeOrder = async (userId, addressId, paymentMethod, transactionId
           transactionType: 'Debit',
           status: 'Success',
           method: paymentMethod,
-          description: `payment for Order #${newOrder.orderId}`
+          description: `Payment for Order #${newOrder.orderId}`
         });
         await newTransaction.save();
       }
@@ -272,7 +272,7 @@ export const cancelFullOrder = async (userId, orderId, reason) => {
   order.status = 'Cancelled';
   order.cancellationReason = reason || 'Cancelled by user';
 
-  
+
   for (const item of order.items) {
     if (item.itemStatus !== 'Cancelled') {
       item.itemStatus = 'Cancelled';
@@ -289,7 +289,7 @@ export const cancelFullOrder = async (userId, orderId, reason) => {
     }
   }
 
-  
+
   if (order.payment.status === 'paid') {
     const refundAmount = order.totalAmount;
 
@@ -565,9 +565,9 @@ export const updateOrderStatus = async (orderId, status) => {
 
 export const updateOrderItemStatus = async (orderId, itemId, status) => {
   const Order = getModel('Order');
-  const User = getModel('User');         
-  const Transaction = getModel('Transaction'); 
-  const Products = getModel('Products');    
+  const User = getModel('User');
+  const Transaction = getModel('Transaction');
+  const Products = getModel('Products');
 
   const order = await Order.findById(orderId).populate('user');
   if (!order) throw new AppError('Order is not found', 404, 'ORDER_IS_NOT_FOUND');
@@ -586,13 +586,13 @@ export const updateOrderItemStatus = async (orderId, itemId, status) => {
   }
 
   const oldStatus = item.itemStatus;
-  
+
   if (status === 'Return Approved') {
-   
+
     if (order.payment.status === 'paid') {
       const refundAmount = item.price * item.quantity;
-      await User.findByIdAndUpdate(order.user._id, { 
-        $inc: { walletBalance: refundAmount } 
+      await User.findByIdAndUpdate(order.user._id, {
+        $inc: { walletBalance: refundAmount }
       });
 
       await Transaction.create({
@@ -611,7 +611,7 @@ export const updateOrderItemStatus = async (orderId, itemId, status) => {
     if (product) {
       const variant = product.variants.id(item.variantId);
       if (variant) {
-       
+
         const stockPath = `variants.$.stock.${item.size}`;
         await Products.findOneAndUpdate(
           { _id: product._id, "variants._id": item.variantId },
@@ -630,7 +630,7 @@ export const updateOrderItemStatus = async (orderId, itemId, status) => {
     date: new Date()
   });
 
-  
+
   const allCompleted = order.items.every(i =>
     ['Returned', 'Cancelled', 'Return Approved'].includes(i.itemStatus)
   );
@@ -638,7 +638,7 @@ export const updateOrderItemStatus = async (orderId, itemId, status) => {
   const allDelivered = order.items.every(i => i.itemStatus === 'Delivered');
 
   if (allCompleted) {
-    order.status = 'Returned'; 
+    order.status = 'Returned';
   }
 
   if (allDelivered) {
