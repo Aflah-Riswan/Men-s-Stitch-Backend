@@ -7,7 +7,7 @@ export const sendEmail = async (email, subject, htmlMessage) => {
       service: process.env.SERVICE,
       host: process.env.HOST,
       port: 465,
-      secure: false, 
+      secure: true, 
       auth: {
         user: process.env.USER,
         pass: process.env.PASSWORD
