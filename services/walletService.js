@@ -19,7 +19,7 @@ export const getMyWallet = async (userId) => {
 }).sort({ createdAt: -1 });
   if (!transaction) throw new AppError('Transaction Details is not found', 404, 'TRANSACTION DETAILS IS NOT FOUND')
   return {
-    walletBalance: user.walletBalance || 1,
+    walletBalance: user.walletBalance ,
     transactionDetails: transaction,
     referralCode: user.referralCode
   }

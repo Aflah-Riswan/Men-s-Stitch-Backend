@@ -16,6 +16,9 @@ export const protect = async (req, res, next) => {
       if (!req.user) {
          return res.status(401).json({ message: 'Not authorized, user not found' });
       }
+      if(req.user.isBlocked && req.user.role === 'user'){
+         return res.status(403).json({ message: 'Not authorized, You are Blocked' });
+      }
 
       next();
     } catch (error) {

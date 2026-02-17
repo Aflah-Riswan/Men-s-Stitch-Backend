@@ -13,7 +13,7 @@ import validateCategory from '../middlewares/validateCategory.js';
 const router = express.Router();
 
 // router.post('/', protect, admin, validateCategory, createCategory);
-router.get('/', getAllCategories);
+router.get('/',getAllCategories);
 // router.patch('/:id/toggle', protect, admin, toggleIsList);
 // router.get('/:slug/edit', protect, admin, getCategoryBySlug);
 // router.put('/:slug/edit', protect, admin, validateCategory, updateCategory);

@@ -35,7 +35,7 @@ export const validateUserSignup = (credentials) => {
         'string.min': 'frist name should be minimum value of 3'
       }),
     lastName: Joi.string()
-      .min(3)
+      .min(1)
       .max(30)
       .required()
       .messages({
@@ -56,7 +56,7 @@ export const validateUserSignup = (credentials) => {
       .min(8)
       .max(30)
   
-      .pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$'))
+      .pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&#]{8,}$'))
       .required()
       .messages({
         'string.pattern.base': 'Invalid password pattern. Must include uppercase, lowercase, number, and special character.',

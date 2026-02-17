@@ -1,12 +1,13 @@
 import Order from "../models/order.js";
 
+// Helper to determine date range
 const getDateRange = (period, from, to) => {
   const today = new Date();
   let startDate, endDate;
 
   if (period === 'daily') {
     startDate = new Date(today.setHours(0, 0, 0, 0));
-    endDate = new Date(today.setHours(23, 59, 59, 999));
+    endDate = new Date(new Date().setHours(23, 59, 59, 999));
   } else if (period === 'weekly') {
     const lastWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
     startDate = new Date(lastWeek.setHours(0, 0, 0, 0));
@@ -30,24 +31,19 @@ const getDateRange = (period, from, to) => {
   return { startDate, endDate };
 };
 
+// --- MAIN FUNCTION (Renamed back to generateSalesReport) ---
 export const generateSalesReport = async (query) => {
   const { from, to, period } = query;
   const { startDate, endDate } = getDateRange(period, from, to);
 
-
+  // 1. Aggregation for Summary Cards
   const salesData = await Order.aggregate([
     {
       $match: {
-
         status: { 
           $in: [
-            'Delivered', 
-            'Shipped', 
-            'Processing', 
-            'Ordered', 
-            'Cancelled', 
-            'Returned', 
-            'Return Approved'
+            'Delivered', 'Shipped', 'Processing', 'Ordered', 
+            'Cancelled', 'Returned', 'Return Approved'
           ] 
         },
         createdAt: { $gte: startDate, $lte: endDate }
@@ -82,7 +78,6 @@ export const generateSalesReport = async (query) => {
             ]
           }
         },
-
         totalDiscount: { $sum: "$discount" }
       }
     },
@@ -93,17 +88,12 @@ export const generateSalesReport = async (query) => {
     },
   ]);
 
-
+  // 2. Fetch Detailed Orders for Table/Download
   const orders = await Order.find({
     status: { 
       $in: [
-        'Delivered', 
-        'Shipped', 
-        'Processing', 
-        'Ordered', 
-        'Cancelled', 
-        'Returned', 
-        'Return Approved'
+        'Delivered', 'Shipped', 'Processing', 'Ordered', 
+        'Cancelled', 'Returned', 'Return Approved'
       ] 
     },
     createdAt: { $gte: startDate, $lte: endDate }
@@ -111,7 +101,7 @@ export const generateSalesReport = async (query) => {
     .populate('user', 'firstName email')
     .sort({ createdAt: -1 });
 
-  // Default structure if no data found
+  // 3. Handle Empty Data Case
   const stats = salesData[0] || {
     totalOrders: 0,
     grossSales: 0,

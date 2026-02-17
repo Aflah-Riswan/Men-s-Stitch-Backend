@@ -27,13 +27,18 @@ export const loginService = async (userData) => {
   const user = await User.findOne({ email });
   if (!user) throw new AppError('User does not find', 404, 'USER_NOT_FOUND')
 
-  console.log("1. Input Password:", password);
-  console.log("2. DB Hashed Password:", user.password);
 
   if (!user.password) {
     throw new AppError(
       'This account was created with Google. Please sign in with Google.',
       400,
+      'INVALID_LOGIN_METHOD'
+    );
+  }
+  if(user.isBlocked){
+    throw new AppError(
+      'You are blocked by Admin.',
+      403,
       'INVALID_LOGIN_METHOD'
     );
   }
@@ -178,8 +183,6 @@ export const verifyOtpService = async (email, inputOtp) => {
 
   await Otp.deleteOne({ _id: otpRecord._id });
   return { success: true, message: 'Successfully verified' };
-
-
 
 };
 
