@@ -44,3 +44,4 @@ export const uploadMultipleFileService = async (files) => {
   const urlCollections = await Promise.all(uploadPromises);
   return { success: true, urlCollections };
 };
+//sample command line 
