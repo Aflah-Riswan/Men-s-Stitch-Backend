@@ -4,18 +4,20 @@ import AppError from "../utils/appError.js";
 
 
 export const addCouponService = async (data) => {
-  console.log(data)
-  const isExist = await Coupons.findOne({ couponCode: data.couponCode })
-  console.log("isExist : ", isExist)
-  if (isExist) throw new AppError('Coupon already exist', 409, 'COUPON_ALREADY_EXISTED')
-  const coupon = new Coupons(data)
-  const savedCoupon = await coupon.save()
+  if (data.expiryDate && new Date(data.expiryDate) < new Date().setHours(0, 0, 0, 0)) {
+    throw new AppError('Expiry date cannot be in the past', 400, 'INVALID_EXPIRY_DATE');
+  }
+
+  const isExist = await Coupons.findOne({ couponCode: data.couponCode });
+  if (isExist) throw new AppError('Coupon already exist', 409, 'COUPON_ALREADY_EXISTED');
+
+  const coupon = new Coupons(data);
+  const savedCoupon = await coupon.save();
   return {
     success: true,
     message: ' coupon added succesfully ',
-  }
-
-}
+  };
+};
 
 
 export const getCouponService = async (data) => {
@@ -111,12 +113,22 @@ export const getCouponById = async (couponId) => {
   return coupon
 }
 export const updateCoupon = async (couponId, data) => {
-  const isExisted = await Coupons.findOne({ _id: couponId })
-  if (!isExisted) throw new AppError('Coupon is not found', 404, 'COUPON_IS_NOT_FOUND')
-  const response = await Coupons.findByIdAndUpdate(couponId, { $set: data }, { new: true, runValidators: true }
+
+  if (data.expiryDate && new Date(data.expiryDate) < new Date().setHours(0, 0, 0, 0)) {
+    throw new AppError('Expiry date cannot be in the past', 400, 'INVALID_EXPIRY_DATE');
+  }
+
+
+  const isExisted = await Coupons.findOne({ _id: couponId });
+  if (!isExisted) throw new AppError('Coupon is not found', 404, 'COUPON_IS_NOT_FOUND');
+
+  const response = await Coupons.findByIdAndUpdate(
+    couponId, 
+    { $set: data }, 
+    { new: true, runValidators: true }
   );
-  return response
-}
+  return response;
+};
 export const deleteCoupon = async (couponId) => {
   const couponToDelete = await Coupons.findOne({ _id: couponId })
   if (!couponToDelete) throw new AppError('Coupon is not found ', 404, 'COUPON_IS_NOT_FOUND')
